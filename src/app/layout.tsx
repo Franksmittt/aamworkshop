@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,20 +15,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "YourBrand - Digital Solutions That Drive Results",
-  description: "We create stunning websites and applications that drive business growth. Transform your ideas into powerful digital solutions.",
-  keywords: ["web development", "digital solutions", "web design", "mobile apps"],
-  authors: [{ name: "YourBrand Team" }],
+  title: "All American Muscle | Project Tracker",
+  description: "Live progress tracking for classic American muscle car restorations. See your dream car come to life, step by step.",
+  keywords: ["classic car restoration", "muscle car", "auto restoration", "project tracking", "All American Muscle"],
+  authors: [{ name: "All American Muscle" }],
   openGraph: {
-    title: "YourBrand - Digital Solutions That Drive Results",
-    description: "We create stunning websites and applications that drive business growth.",
+    title: "All American Muscle | Project Tracker",
+    description: "Live progress tracking for classic American muscle car restorations.",
+    url: process.env.NEXT_PUBLIC_SITE_URL,
+    siteName: "All American Muscle",
     type: "website",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "YourBrand - Digital Solutions That Drive Results",
-    description: "We create stunning websites and applications that drive business growth.",
+    title: "All American Muscle | Project Tracker",
+    description: "Live progress tracking for classic American muscle car restorations.",
   },
   robots: {
     index: true,
@@ -40,11 +44,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        {children}
+        <Header />
+        <main>{children}</main>
+        <Footer />
       </body>
     </html>
   );
