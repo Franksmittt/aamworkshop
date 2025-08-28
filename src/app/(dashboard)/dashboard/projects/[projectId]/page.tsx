@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getProjectById, updateProject, deleteProject } from '@/lib/data-service';
 import { mockTechnicians } from '@/lib/mock-data';
-import { Project, Category, SubTask, TimelineUpdate, Technician, Message } from '@/lib/types';
+// Corrected: Removed unused 'Category' and 'SubTask' types
+import { Project, TimelineUpdate, Technician, Message } from '@/lib/types';
 import ProjectHeader from '@/components/ProjectHeader';
 import InteractiveProgressCategory from '@/components/dashboard/InteractiveProgressCategory';
 import AddTimelineForm from '@/components/dashboard/AddTimelineForm';
