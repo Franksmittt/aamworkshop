@@ -9,12 +9,12 @@ import { Edit } from 'lucide-react';
 interface ProjectHeaderProps {
   project: Project;
   overallProgress: number;
-  onEdit?: () => void; // Optional onEdit prop
+  onEdit?: () => void;
 }
 
 const ProjectHeader = ({ project, overallProgress, onEdit }: ProjectHeaderProps) => {
-  const { car, customerName, status } = project;
-
+  const { car, customerName, status, holdReason } = project; // Destructure holdReason
+  
   const statusClasses = {
     Active: 'bg-green-900/50 text-green-300 border border-green-500/30',
     'On Hold': 'bg-yellow-900/50 text-yellow-300 border border-yellow-500/30',
@@ -38,8 +38,14 @@ const ProjectHeader = ({ project, overallProgress, onEdit }: ProjectHeaderProps)
           </p>
         </div>
         <div className="flex items-center space-x-4 mt-4 md:mt-0">
-          <div className={`text-sm font-medium px-3 py-1 rounded-full ${statusClasses[status]}`}>
-            {status}
+          <div className="text-right">
+            <div className={`text-sm font-medium px-3 py-1 rounded-full inline-block ${statusClasses[status]}`}>
+              {status}
+            </div>
+            {/* NEW: Conditionally render the hold reason */}
+            {status === 'On Hold' && holdReason && (
+              <p className="text-xs text-yellow-300 mt-1">{holdReason}</p>
+            )}
           </div>
           {onEdit && (
             <Button onClick={onEdit} variant="outline" size="sm">

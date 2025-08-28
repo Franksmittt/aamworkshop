@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, CheckCircle2, Circle } from 'lucide-react';
+// NEW: Import HelpCircle icon
+import { ChevronDown, CheckCircle2, Circle, HelpCircle } from 'lucide-react';
 import { Category } from '@/lib/types';
 import ProgressBar from './ui/ProgressBar';
 
@@ -12,7 +13,6 @@ interface ProgressCategoryProps {
 
 const ProgressCategory = ({ category }: ProgressCategoryProps) => {
   const [isOpen, setIsOpen] = useState(false);
-
   const completedTasks = category.subTasks.filter(task => task.completed).length;
   const totalTasks = category.subTasks.length;
   const categoryProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
@@ -51,16 +51,13 @@ const ProgressCategory = ({ category }: ProgressCategoryProps) => {
             initial="collapsed"
             animate="open"
             exit="collapsed"
-            variants={{
-              open: { opacity: 1, height: 'auto' },
-              collapsed: { opacity: 0, height: 0 },
-            }}
+            variants={{ open: { opacity: 1, height: 'auto' }, collapsed: { opacity: 0, height: 0 } }}
             transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
             className="px-4 pb-4"
           >
             <ul className="space-y-3 pt-4 border-t border-white/10">
               {category.subTasks.map(task => (
-                <li key={task.id} className="flex items-center">
+                <li key={task.id} className={`flex items-center p-2 rounded-md ${task.requiresClientApproval && !task.completed ? 'bg-blue-900/50' : ''}`}>
                   {task.completed ? (
                     <CheckCircle2 className="h-5 w-5 text-green-400 mr-3 flex-shrink-0" />
                   ) : (
@@ -69,6 +66,13 @@ const ProgressCategory = ({ category }: ProgressCategoryProps) => {
                   <span className={`text-gray-300 ${task.completed ? 'line-through text-gray-500' : ''}`}>
                     {task.name}
                   </span>
+                  {/* NEW: Highlight tasks needing approval */}
+                  {task.requiresClientApproval && !task.completed && (
+                    <span className="ml-auto flex items-center text-xs font-semibold text-blue-300 bg-blue-900 px-2 py-1 rounded-full">
+                        <HelpCircle className="h-3 w-3 mr-1.5" />
+                        Decision Needed
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

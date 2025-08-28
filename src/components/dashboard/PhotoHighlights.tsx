@@ -1,20 +1,12 @@
-'use client';
-
-import { useState, useEffect } from 'react';
 import { getRecentMedia } from '@/lib/data-service';
-import { Media } from '@/lib/types';
 import Image from 'next/image';
 
 const PhotoHighlights = () => {
-  const [recentMedia, setRecentMedia] = useState<Media[]>([]);
-
-  useEffect(() => {
-    setRecentMedia(getRecentMedia(4)); // Get the latest 4 images
-  }, []);
+  const recentMedia = getRecentMedia(4); // Get the latest 4 images
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-soft">
-      <h3 className="text-xl font-bold text-gray-900 mb-4">Photo Highlights</h3>
+    <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+      <h3 className="text-xl font-bold text-white mb-4">Photo Highlights</h3>
       {recentMedia.length > 0 ? (
         <div className="grid grid-cols-2 gap-4">
           {recentMedia.map(item => (

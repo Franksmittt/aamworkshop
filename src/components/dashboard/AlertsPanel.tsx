@@ -9,12 +9,13 @@ interface AlertItemProps {
 }
 
 const AlertItem = ({ icon: Icon, text, subtext, color }: AlertItemProps) => (
+  // Updated AlertItem to a dark theme
   <div className="flex items-start">
-    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-${color}-100`}>
-      <Icon className={`h-5 w-5 text-${color}-600`} />
+    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-${color}-900/50 border border-${color}-500/30`}>
+      <Icon className={`h-5 w-5 text-${color}-400`} />
     </div>
     <div className="ml-3">
-      <p className="text-sm font-medium text-gray-800">{text}</p>
+      <p className="text-sm font-medium text-gray-200">{text}</p>
       <p className="text-xs text-gray-500">{subtext}</p>
     </div>
   </div>
@@ -27,10 +28,11 @@ const AlertsPanel = () => {
     { icon: MessageSquare, text: 'New comment from Jane Jones', subtext: '1969 Camaro SS', color: 'blue' },
     { icon: Clock, text: 'Upcoming Delivery: Dodge Charger', subtext: 'Scheduled for next Friday', color: 'purple' },
   ];
-
+  
   return (
-    <div className="bg-white p-6 rounded-lg shadow-soft">
-      <h3 className="text-xl font-bold text-gray-900 mb-4">Alerts & Notifications</h3>
+    // Updated Panel to a dark theme
+    <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+      <h3 className="text-xl font-bold text-white mb-4">Alerts & Notifications</h3>
       <div className="space-y-4">
         {alerts.map((alert, index) => (
           <AlertItem key={index} {...alert} />

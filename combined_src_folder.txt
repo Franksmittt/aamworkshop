@@ -1,0 +1,3841 @@
+================== FILE TREE ==================
+
+├── app
+│   ├── (dashboard)
+│   │   ├── dashboard
+│   │   │   ├── customers
+│   │   │   │   └── page.tsx
+│   │   │   ├── media
+│   │   │   │   └── page.tsx
+│   │   │   ├── page.tsx
+│   │   │   ├── projects
+│   │   │   │   ├── [projectId]
+│   │   │   │   │   └── page.tsx
+│   │   │   │   ├── new
+│   │   │   │   │   └── page.tsx
+│   │   │   │   └── page.tsx
+│   │   │   ├── settings
+│   │   │   │   └── page.tsx
+│   │   │   ├── timeline
+│   │   │   │   └── page.tsx
+│   │   │   └── workshop
+│   │   │       └── page.tsx
+│   │   └── layout.tsx
+│   ├── (public)
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   └── projects
+│   │       └── [projectId]
+│   │           ├── layout.tsx
+│   │           └── page.tsx
+│   ├── favicon.ico
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── not-found.tsx
+├── components
+│   ├── DecisionsNeededPanel.tsx
+│   ├── Footer.tsx
+│   ├── Header.tsx
+│   ├── MediaGallery.tsx
+│   ├── ProgressCategory.tsx
+│   ├── ProjectHeader.tsx
+│   ├── Timeline.tsx
+│   ├── dashboard
+│   │   ├── ActionRequiredFeed.tsx
+│   │   ├── ActivityFeed.tsx
+│   │   ├── AddTimelineForm.tsx
+│   │   ├── AlertsPanel.tsx
+│   │   ├── DashboardHeader.tsx
+│   │   ├── EditProjectModal.tsx
+│   │   ├── FinancialsPanel.tsx
+│   │   ├── InteractiveProgressCategory.tsx
+│   │   ├── InternalNotes.tsx
+│   │   ├── MessagingCenter.tsx
+│   │   ├── PhotoHighlights.tsx
+│   │   ├── ProjectStatusUpdater.tsx
+│   │   ├── ProjectSummaryCard.tsx
+│   │   ├── QuickStats.tsx
+│   │   ├── Sidebar.tsx
+│   │   ├── StatCard.tsx
+│   │   └── WorkshopKanban.tsx
+│   └── ui
+│       ├── Button.tsx
+│       ├── ConfirmationModal.tsx
+│       ├── Input.tsx
+│       ├── ProgressBar.tsx
+│       └── ToggleSwitch.tsx
+└── lib
+    ├── data-service.ts
+    ├── mock-data.ts
+    ├── project-templates.ts
+    ├── types.ts
+    └── utils.ts
+
+
+
+================== FILE CONTENTS ==================
+
+
+==================== app\favicon.ico ====================
+
+[Binary or unreadable file content skipped]
+
+
+==================== app\globals.css ====================
+
+@import "tailwindcss";
+
+:root {
+  --background: #111111; /* Charcoal/Dark Gray */
+  --foreground: #f1f1f1; /* Light Gray/White text */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
+  /* Brand Colors - Red Accent */
+  --color-primary-50: #fee2e2;
+  --color-primary-100: #fecaca;
+  --color-primary-200: #fca5a5;
+  --color-primary-300: #f87171;
+  --color-primary-400: #ef4444;
+  --color-primary-500: #dc2626; /* Main Red Accent */
+  --color-primary-600: #b91c1c;
+  --color-primary-700: #991b1b;
+  --color-primary-800: #7f1d1d;
+  --color-primary-900: #450a0a;
+  
+  /* Enhanced Shadows (adjusted for dark theme) */
+  --shadow-soft: 0 2px 15px -3px rgba(0, 0, 0, 0.2), 0 10px 20px -2px rgba(0, 0, 0, 0.1);
+  --shadow-medium: 0 4px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+  --shadow-large: 0 10px 50px -12px rgba(0, 0, 0, 0.5);
+  
+  /* Container Widths */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1536px;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Grid pattern utility (adjusted for dark theme) */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 25px 25px;
+}
+
+/* Custom utilities */
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Focus styles */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900;
+}
+
+==================== app\layout.tsx ====================
+
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "All American Muscle | Project Tracker",
+  description: "Live progress tracking for classic American muscle car restorations. See your dream car come to life, step by step.",
+  keywords: ["classic car restoration", "muscle car", "auto restoration", "project tracking", "All American Muscle"],
+  authors: [{ name: "All American Muscle" }],
+  openGraph: {
+    title: "All American Muscle | Project Tracker",
+    description: "Live progress tracking for classic American muscle car restorations.",
+    url: process.env.NEXT_PUBLIC_SITE_URL,
+    siteName: "All American Muscle",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "All American Muscle | Project Tracker",
+    description: "Live progress tracking for classic American muscle car restorations.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" className="dark">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+      >
+        {/* This main tag is the entry point for all other page and layout content. */}
+        <main>{children}</main>
+      </body>
+    </html>
+  );
+}
+
+
+==================== app\not-found.tsx ====================
+
+'use client';
+
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Home, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+
+export default function NotFound() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4">
+      <div className="max-w-md w-full text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-8xl font-bold text-blue-600 mb-4"
+          >
+            404
+          </motion.div>
+          
+          <motion.h1
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="text-2xl font-bold text-gray-900 mb-4"
+          >
+            Page Not Found
+          </motion.h1>
+          
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="text-gray-600 mb-8"
+          >
+            Sorry, we couldn&apos;t find the page you&apos;re looking for. 
+            It might have been moved, deleted, or you entered the wrong URL.
+          </motion.p>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.8 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center"
+          >
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center bg-blue-600 text-white px-6 py-3 rounded-full font-medium hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Go Home
+            </Link>
+            
+            <button
+              onClick={() => window.history.back()}
+              className="inline-flex items-center justify-center border-2 border-blue-600 text-blue-600 px-6 py-3 rounded-full font-medium hover:bg-blue-600 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Go Back
+            </button>
+          </motion.div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+
+==================== app\(dashboard)\layout.tsx ====================
+
+'use client';
+
+import { useState } from 'react';
+import Sidebar from '@/components/dashboard/Sidebar';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  return (
+    // Reverted to the dark theme to match the root layout and component styles.
+    <div className="flex h-screen bg-background text-foreground">
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <DashboardHeader onMenuClick={() => setIsSidebarOpen(true)} />
+        <main className="flex-1 overflow-y-auto bg-grid-pattern">
+          <div className="p-6 md:p-8">
+            {children}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+==================== app\(dashboard)\dashboard\page.tsx ====================
+
+import { getProjects } from '@/lib/data-service';
+import ProjectSummaryCard from '@/components/dashboard/ProjectSummaryCard';
+import QuickStats from '@/components/dashboard/QuickStats';
+import { calculateOverallProgress } from '@/lib/utils';
+// IMPORT OUR NEW COMPONENT
+import ActionRequiredFeed from '@/components/dashboard/ActionRequiredFeed';
+
+export default function DashboardPage() {
+  const projects = getProjects();
+  
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white">Welcome back, Boss!</h1>
+        <p className="text-gray-400">Here’s what needs your attention.</p>
+      </div>
+
+      <div className="mb-8">
+        <QuickStats projects={projects} />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+         <div className="xl:col-span-2">
+          <h2 className="text-2xl font-bold text-white mb-4">Active Projects</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {projects.filter(p => p.status === 'Active' || p.status === 'On Hold').map(project => {
+              const progress = calculateOverallProgress(project);
+              return <ProjectSummaryCard key={project.id} project={project} progress={progress} />;
+            })}
+          </div>
+        </div>
+        
+        {/* THE OLD COMPONENTS ARE REMOVED AND REPLACED WITH OUR NEW FEED */}
+        <div className="xl:col-span-1 space-y-8">
+            <ActionRequiredFeed projects={projects} />
+        </div>
+      </div>
+    </div>
+   );
+}
+
+==================== app\(dashboard)\dashboard\customers\page.tsx ====================
+
+import { mockProjects } from '@/lib/mock-data';
+import { User, Car } from 'lucide-react';
+import Link from 'next/link';
+
+export default function CustomersPage() {
+  // Group projects by customer name to create a unique customer list
+  const customers = mockProjects.reduce((acc, project) => {
+    const customerName = project.customerName;
+    if (!acc[customerName]) {
+      acc[customerName] = {
+        name: customerName,
+        email: `contact+${customerName.split(' ').join('.').toLowerCase()}@example.com`,
+        phone: '072 0426 477',
+        projects: []
+      };
+    }
+    acc[customerName].projects.push(project);
+    return acc;
+  }, {} as Record<string, { name: string; email: string; phone: string; projects: typeof mockProjects }>);
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white">Customers</h1>
+        <p className="text-gray-400">A list of all clients and their projects.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {Object.values(customers).map(customer => (
+          <div key={customer.name} className="bg-gray-800 border border-white/10 rounded-lg shadow-soft p-6">
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center mr-4">
+                <User className="h-6 w-6 text-gray-400" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">{customer.name}</h2>
+                <p className="text-sm text-gray-400">{customer.email}</p>
+                <p className="text-sm text-gray-400">{customer.phone}</p>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Projects</h3>
+               <ul className="space-y-2">
+                {customer.projects.map(project => (
+                  <li key={project.id}>
+                    <Link href={`/dashboard/projects/${project.id}`} className="flex items-center p-2 rounded-md hover:bg-gray-700/50 transition-colors">
+                      <Car className="h-5 w-5 text-red-500 mr-3 flex-shrink-0" />
+                      <span className="text-sm font-medium text-gray-300">{`${project.car.year} ${project.car.make} ${project.car.model}`}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+==================== app\(dashboard)\dashboard\media\page.tsx ====================
+
+'use client';
+
+import { useState, useMemo } from 'react';
+import { mockProjects } from '@/lib/mock-data';
+import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
+
+export default function MediaPage() {
+  const allMedia = useMemo(() => 
+    mockProjects.flatMap(project => 
+      project.media.map(mediaItem => ({
+        ...mediaItem,
+        projectName: `${project.car.year} ${project.car.make} ${project.car.model}`,
+        projectId: project.id
+      }))
+    ), 
+  []);
+
+  const allCategories = useMemo(() => 
+    ['All Categories', ...Array.from(new Set(allMedia.map(item => item.category)))], 
+  [allMedia]);
+
+  const [selectedProject, setSelectedProject] = useState('All Projects');
+  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  const filteredMedia = allMedia.filter(item => {
+    const projectMatch = selectedProject === 'All Projects' || item.projectId === selectedProject;
+    const categoryMatch = selectedCategory === 'All Categories' || item.category === selectedCategory;
+    return projectMatch && categoryMatch;
+  });
+
+  return (
+    <>
+      <div className="mb-8">
+        {/* Text colors reverted for dark background */}
+        <h1 className="text-3xl font-bold text-white">Global Media Library</h1>
+        <p className="text-gray-400">View and filter all photos from all projects.</p>
+      </div>
+
+      {/* Filter Controls */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-8 p-4 bg-gray-800 border border-white/10 rounded-lg shadow-soft">
+        <div>
+          <label htmlFor="project-filter" className="block text-sm font-medium text-gray-300">Filter by Project</label>
+          <select
+            id="project-filter"
+            value={selectedProject}
+            onChange={(e) => setSelectedProject(e.target.value)}
+            className="mt-1 block w-full sm:w-64 rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-red-500 focus:ring-red-500"
+          >
+            <option>All Projects</option>
+            {mockProjects.map(p => <option key={p.id} value={p.id}>{`${p.car.year} ${p.car.make} ${p.car.model}`}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="category-filter" className="block text-sm font-medium text-gray-300">Filter by Category</label>
+          <select
+            id="category-filter"
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="mt-1 block w-full sm:w-64 rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-red-500 focus:ring-red-500"
+          >
+            {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Image Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {filteredMedia.map(item => (
+          <motion.div
+            key={item.id}
+            layout
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group shadow-soft"
+            onClick={() => setSelectedImage(item.url)}
+          >
+            <Image
+              src={item.url}
+              alt={item.caption}
+              fill
+              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+            <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
+              <p className="text-white text-xs font-semibold truncate">{item.projectName}</p>
+              <p className="text-gray-300 text-xs truncate">{item.caption}</p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+       {filteredMedia.length === 0 && (
+        <div className="text-center py-16 bg-gray-800 rounded-lg">
+          <p className="text-gray-500">No photos match the selected filters.</p>
+        </div>
+      )}
+
+
+      {/* Lightbox Modal */}
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setSelectedImage(null)}
+          >
+            <motion.div
+              layoutId={selectedImage}
+              className="relative w-full max-w-5xl max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Image
+                src={selectedImage}
+                alt="Selected restoration image"
+                width={1200}
+                height={800}
+                style={{ width: '100%', height: 'auto', objectFit: 'contain', maxHeight: '90vh' }}
+              />
+            </motion.div>
+            <motion.button
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              className="absolute top-4 right-4 text-white hover:text-red-500"
+              onClick={() => setSelectedImage(null)}
+            >
+              <X className="w-8 h-8" />
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
+==================== app\(dashboard)\dashboard\projects\page.tsx ====================
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { getProjects } from '@/lib/data-service';
+import { Project } from '@/lib/types';
+import Link from 'next/link';
+import Button from '@/components/ui/Button';
+import { Plus, AlertTriangle, Clock } from 'lucide-react';
+import { calculateOverallProgress } from '@/lib/utils';
+
+// UPGRADED: This component now displays the hold reason
+const StatusDisplay = ({ status, holdReason }: { status: Project['status'], holdReason: Project['holdReason'] }) => {
+  const statusClasses = {
+    Active: 'bg-green-900/50 text-green-300 border border-green-500/30',
+    'On Hold': 'bg-yellow-900/50 text-yellow-300 border border-yellow-500/30',
+    Completed: 'bg-red-900/50 text-red-300 border border-red-500/30',
+  };
+  
+  const holdReasonIcons = {
+    'Awaiting Parts': <Clock className="h-3 w-3 mr-1.5" />,
+    'Awaiting Payment': <span className="mr-1.5 font-bold text-lg leading-none">$</span>,
+    'Awaiting Client Decision': <AlertTriangle className="h-3 w-3 mr-1.5" />,
+  };
+
+  return (
+    <div className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${statusClasses[status]}`}>
+      {status === 'On Hold' && holdReason && holdReasonIcons[holdReason]}
+      {status === 'On Hold' && holdReason ? holdReason : status}
+    </div>
+  );
+};
+
+export default function ProjectsPage() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  
+  useEffect(() => {
+    setProjects(getProjects());
+  }, []);
+  
+  return (
+    <>
+      <div className="flex justify-between items-center mb-8">
+        <div>
+            <h1 className="text-3xl font-bold text-white">All Projects</h1>
+            <p className="text-gray-400">A complete list of all workshop projects.</p>
+        </div>
+        <Button href="/dashboard/projects/new" variant="primary">
+            <Plus className="-ml-1 mr-2 h-5 w-5" />
+            New Project
+        </Button>
+      </div>
+
+      <div className="bg-gray-800 border border-white/10 rounded-lg shadow-soft overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-700">
+            <thead className="bg-gray-900/50">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Car</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Customer</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Progress</th>
+                <th scope="col" className="relative px-6 py-3">
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-gray-800 divide-y divide-gray-700">
+              {projects.map(project => {
+                 const progress = calculateOverallProgress(project);
+                 return (
+                  <tr key={project.id} className="hover:bg-gray-700/50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-white">{project.car.year} {project.car.make} {project.car.model}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-300">{project.customerName}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                       {/* USE THE NEW COMPONENT */}
+                      <StatusDisplay status={project.status} holdReason={project.holdReason} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-20 bg-gray-700 rounded-full h-1.5 mr-2">
+                          <div className="bg-red-600 h-1.5 rounded-full" style={{ width: `${progress}%` }}></div>
+                        </div>
+                        <span className="text-sm text-gray-400">{Math.round(progress)}%</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <Link href={`/dashboard/projects/${project.id}`} className="text-red-500 hover:text-red-400">
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
+
+==================== app\(dashboard)\dashboard\projects\new\page.tsx ====================
+
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Car, User, ListChecks, ArrowRight } from 'lucide-react';
+import { fullRestorationTemplate, majorServiceTemplate } from '@/lib/project-templates';
+import { addProject } from '@/lib/data-service';
+import { Category } from '@/lib/types';
+import Input from '@/components/ui/Input';
+import Button from '@/components/ui/Button';
+
+export default function NewProjectPage() {
+  const router = useRouter();
+  const [step, setStep] = useState(1);
+
+  // Form State
+  const [customerName, setCustomerName] = useState('');
+  const [carYear, setCarYear] = useState('');
+  const [carMake, setCarMake] = useState('');
+  const [carModel, setCarModel] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState<Category[]>([]);
+
+  const handleSaveProject = () => {
+    if (!customerName || !carYear || !carMake || !carModel) {
+        alert('Please fill out all car and customer details.');
+        return;
+    }
+
+    // UPDATED: The new project object now includes all required fields for consistency.
+    addProject({
+        customerName: customerName,
+        car: {
+            year: parseInt(carYear),
+            make: carMake,
+            model: carModel,
+        },
+        status: 'Active',
+        holdReason: '', // Initialize as empty
+        createdAt: new Date().toISOString().split('T')[0],
+        categories: selectedTemplate,
+        timeline: [{
+            id: `t-${Date.now()}`,
+            date: new Date().toISOString().split('T')[0],
+            update: 'Project created and added to the system.',
+            category: 'Project Start'
+        }],
+        media: [],
+        internalNotes: [], // Initialize as empty array
+        messages: [], // Initialize as empty array
+        financials: { // Initialize with default financial info
+            invoices: [],
+            totalQuoted: 0,
+            totalPaid: 0,
+        },
+    });
+
+    // NOTE: In a real app with a state management solution, the newly created project
+    // would be added to the global state here to update the UI instantly.
+    router.push('/dashboard/projects');
+  };
+
+  const selectTemplate = (template: Category[]) => {
+    setSelectedTemplate(template);
+    setStep(3);
+  };
+
+  const steps = [
+    { number: 1, title: 'Customer & Car', icon: User },
+    { number: 2, title: 'Project Type', icon: ListChecks },
+    { number: 3, title: 'Review & Save', icon: Car },
+  ];
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white">Create New Project</h1>
+        <p className="text-gray-400">Follow the steps to add a new restoration job.</p>
+      </div>
+      
+      <div className="mb-8 p-4 bg-gray-800 border border-white/10 rounded-lg shadow-soft">
+        <ol className="flex items-center w-full">
+           {steps.map((s, index) => (
+            <li key={s.number} className={`flex w-full items-center ${index < steps.length - 1 ? "after:content-[''] after:w-full after:h-1 after:border-b after:border-gray-700 after:border-1 after:inline-block" : ""}`}>
+              <span className={`flex items-center justify-center w-10 h-10 rounded-full lg:h-12 lg:w-12 shrink-0 ${step >= s.number ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-400'}`}>
+                <s.icon className="w-5 h-5" />
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, x: 50 }}
+          animate={{ opacity: 1, x: 0 }}
+           exit={{ opacity: 0, x: -50 }}
+          transition={{ duration: 0.3 }}
+        >
+          {step === 1 && (
+            <div className="bg-gray-800 border border-white/10 p-8 rounded-lg shadow-soft">
+              <h2 className="text-2xl font-bold text-white mb-6">Step 1: Customer & Car Details</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Input placeholder="Customer Full Name" value={customerName} onChange={e => setCustomerName(e.target.value)} required />
+                <Input placeholder="Car Year" type="number" value={carYear} onChange={e => setCarYear(e.target.value)} required />
+                <Input placeholder="Car Make" value={carMake} onChange={e => setCarMake(e.target.value)} required />
+                <Input placeholder="Car Model" value={carModel} onChange={e => setCarModel(e.target.value)} required />
+              </div>
+              <Button onClick={() => setStep(2)} className="mt-8" disabled={!customerName || !carYear || !carMake || !carModel}>
+                Next: Select Project Type <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="bg-gray-800 border border-white/10 p-8 rounded-lg shadow-soft">
+              <h2 className="text-2xl font-bold text-white mb-6">Step 2: Select Project Type</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div onClick={() => selectTemplate(fullRestorationTemplate)} className="p-6 border border-gray-700 rounded-lg hover:bg-gray-700 cursor-pointer text-center">
+                  <h3 className="font-bold text-lg text-white">Full Restoration</h3>
+                  <p className="text-sm text-gray-400">{fullRestorationTemplate.length} categories</p>
+                </div>
+                <div onClick={() => selectTemplate(majorServiceTemplate)} className="p-6 border border-gray-700 rounded-lg hover:bg-gray-700 cursor-pointer text-center">
+                  <h3 className="font-bold text-lg text-white">Major Service</h3>
+                  <p className="text-sm text-gray-400">{majorServiceTemplate.length} categories</p>
+                </div>
+                <div onClick={() => selectTemplate([])} className="p-6 border border-gray-700 rounded-lg hover:bg-gray-700 cursor-pointer text-center">
+                  <h3 className="font-bold text-lg text-white">Custom Job</h3>
+                  <p className="text-sm text-gray-400">Start with a blank slate</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="bg-gray-800 border border-white/10 p-8 rounded-lg shadow-soft">
+              <h2 className="text-2xl font-bold text-white mb-6">Step 3: Review & Save</h2>
+              <div className="space-y-2 text-gray-300 border border-gray-700 p-4 rounded-md">
+                <p><strong>Customer:</strong> {customerName}</p>
+                <p><strong>Vehicle:</strong> {carYear} {carMake} {carModel}</p>
+                <p><strong>Tasks:</strong> {selectedTemplate.length > 0 ? `${selectedTemplate.reduce((acc, cat) => acc + cat.subTasks.length, 0)} tasks across ${selectedTemplate.length} categories.` : 'Custom job (add tasks later)'}</p>
+              </div>
+              <Button onClick={handleSaveProject} variant="primary" className="mt-6">
+                Save New Project
+              </Button>
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
+==================== app\(dashboard)\dashboard\projects\[projectId]\page.tsx ====================
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getProjectById } from '@/lib/data-service';
+import { mockTechnicians } from '@/lib/mock-data';
+import { Project, Category, SubTask, TimelineUpdate, Technician, Message, Invoice } from '@/lib/types';
+import ProjectHeader from '@/components/ProjectHeader';
+import InteractiveProgressCategory from '@/components/dashboard/InteractiveProgressCategory';
+import AddTimelineForm from '@/components/dashboard/AddTimelineForm';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
+import EditProjectModal from '@/components/dashboard/EditProjectModal';
+import Button from '@/components/ui/Button';
+import ProjectStatusUpdater from '@/components/dashboard/ProjectStatusUpdater';
+import Timeline from '@/components/Timeline';
+import { calculateOverallProgress } from '@/lib/utils';
+import MessagingCenter from '@/components/dashboard/MessagingCenter';
+import FinancialsPanel from '@/components/dashboard/FinancialsPanel';
+
+export default function WorkshopProjectPage({ params }: { params: { projectId: string } }) {
+  const router = useRouter();
+  const [project, setProject] = useState<Project | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  
+  useEffect(() => {
+    const foundProject = getProjectById(params.projectId);
+    if (foundProject) {
+      setProject(JSON.parse(JSON.stringify(foundProject)));
+    }
+    setTechnicians(mockTechnicians);
+    setIsLoading(false);
+  }, [params.projectId]);
+
+  const handleTaskToggle = (taskId: string, categoryId: string) => {
+    setProject(currentProject => {
+      if (!currentProject) return null;
+      const newProject = JSON.parse(JSON.stringify(currentProject)) as Project;
+      const category = newProject.categories.find(c => c.id === categoryId);
+      if (category) {
+        const task = category.subTasks.find(t => t.id === taskId);
+        if (task) task.completed = !task.completed;
+      }
+      return newProject;
+    });
+  };
+
+  // NEW: Handler to toggle the approval flag on a task
+  const handleToggleApproval = (taskId: string, categoryId: string) => {
+    setProject(currentProject => {
+        if (!currentProject) return null;
+        const newProject = JSON.parse(JSON.stringify(currentProject)) as Project;
+        const category = newProject.categories.find(c => c.id === categoryId);
+        if (category) {
+            const task = category.subTasks.find(t => t.id === taskId);
+            if (task) {
+                task.requiresClientApproval = !task.requiresClientApproval;
+            }
+        }
+        return newProject;
+    });
+  };
+
+  const handleTaskAssign = (taskId: string, categoryId: string, techId: string) => {
+    setProject(currentProject => {
+        if (!currentProject) return null;
+        const newProject = JSON.parse(JSON.stringify(currentProject)) as Project;
+        const category = newProject.categories.find(c => c.id === categoryId);
+        if (category) {
+            const task = category.subTasks.find(t => t.id === taskId);
+            if (task) task.assignedTo = techId || undefined;
+        }
+        return newProject;
+    });
+  };
+
+  const handleSendMessage = (message: Omit<Message, 'id' | 'createdAt'>) => {
+    setProject(currentProject => {
+      if (!currentProject) return null;
+      const newMessage: Message = { ...message, id: `msg-${Date.now()}`, createdAt: new Date().toISOString() };
+      return { ...currentProject, messages: [...currentProject.messages, newMessage] };
+    });
+  };
+
+  const handleTimelineAdd = (newUpdate: Omit<TimelineUpdate, 'id' | 'date'>) => {
+    const newEntry: TimelineUpdate = { ...newUpdate, id: `t-${Date.now()}`, date: new Date().toISOString().split('T')[0] };
+    setProject(currentProject => {
+      if (!currentProject) return null;
+      return { ...currentProject, timeline: [newEntry, ...currentProject.timeline] };
+    });
+  };
+
+  const handleStatusChange = (newStatus: Project['status'], holdReason: Project['holdReason']) => {
+      const reasonText = newStatus === 'On Hold' ? `Project on hold. Reason: ${holdReason}.` : `Project status changed to ${newStatus}.`;
+      const newEntry: TimelineUpdate = { id: `t-status-${Date.now()}`, date: new Date().toISOString().split('T')[0], update: reasonText, category: 'Project Status' };
+      setProject(currentProject => {
+          if (!currentProject) return null;
+          return { ...currentProject, status: newStatus, holdReason: holdReason, timeline: [newEntry, ...currentProject.timeline] };
+      });
+  };
+
+  const handleMarkAsPaid = (invoiceId: string) => {
+    setProject(currentProject => {
+        if (!currentProject) return null;
+        const newProject = JSON.parse(JSON.stringify(currentProject)) as Project;
+        const invoice = newProject.financials.invoices.find(inv => inv.id === invoiceId);
+        if (invoice && invoice.status !== 'Paid') {
+            invoice.status = 'Paid';
+            newProject.financials.totalPaid += invoice.amount;
+            if (newProject.status === 'On Hold' && newProject.holdReason === 'Awaiting Payment') {
+                newProject.status = 'Active';
+                newProject.holdReason = '';
+                const timelineUpdate: TimelineUpdate = { id: `t-payment-${Date.now()}`, date: new Date().toISOString().split('T')[0], update: `Payment for '${invoice.description}' received. Work is resuming.`, category: 'Financial' };
+                newProject.timeline.unshift(timelineUpdate);
+            }
+        }
+        return newProject;
+    });
+  };
+
+  const handleSaveEdits = (updatedData: Partial<Project>) => {
+     setProject(currentProject => currentProject ? { ...currentProject, ...updatedData } : null);
+  };
+
+  const handleDelete = () => {
+    if (project) {
+        router.push('/dashboard/projects');
+    }
+  };
+
+  if (isLoading) return <div className="flex items-center justify-center h-full"><p className="text-gray-400">Loading Project...</p></div>;
+  if (!project) return <div className="flex items-center justify-center h-full"><h1 className="text-2xl font-bold text-red-500">Project Not Found</h1></div>;
+
+  const overallProgress = calculateOverallProgress(project);
+  
+  return (
+    <>
+      <EditProjectModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSave={handleSaveEdits} project={project} />
+      <ConfirmationModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDelete} title="Delete Project" message={`Are you sure you want to permanently delete the ${project.car.year} ${project.car.make} ${project.car.model} project? This action cannot be undone.`} />
+
+      <div>
+        <ProjectHeader project={project} overallProgress={overallProgress} onEdit={() => setIsEditModalOpen(true)} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            <FinancialsPanel project={project} onMarkAsPaid={handleMarkAsPaid} />
+            <MessagingCenter project={project} currentUserRole="Boss" onSendMessage={handleSendMessage} />
+            <div>
+              <h2 className="text-2xl font-bold mb-4 text-white">Manage Progress</h2>
+              <div className="space-y-6">
+                {project.categories.map(category => (
+                  <InteractiveProgressCategory 
+                    key={category.id} 
+                    category={category}
+                    technicians={technicians}
+                    onTaskToggle={handleTaskToggle} 
+                    onTaskAssign={handleTaskAssign}
+                    onToggleApproval={handleToggleApproval} // Pass the new handler down
+                   />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="lg:col-span-1 space-y-8">
+            <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft space-y-6 divide-y divide-gray-700">
+              <div><h3 className="text-xl font-bold mb-4 text-white">Workshop Tools</h3><AddTimelineForm project={project} onAddUpdate={handleTimelineAdd} /></div>
+              <div className="pt-6"><h3 className="text-xl font-bold mb-4 text-white">Manage Status</h3><ProjectStatusUpdater currentStatus={project.status} onStatusChange={handleStatusChange} /></div>
+              <div className="pt-6"><Button onClick={() => setIsDeleteModalOpen(true)} variant="outline" className="w-full">Delete Project</Button></div>
+            </div>
+            <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+               <h2 className="text-xl font-bold text-white mb-4">Project Timeline</h2>
+               <Timeline updates={project.timeline} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+==================== app\(dashboard)\dashboard\settings\page.tsx ====================
+
+'use client';
+
+import { useState } from 'react';
+import { User, Bell, Palette } from 'lucide-react';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
+import Button from '@/components/ui/Button';
+
+export default function SettingsPage() {
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [darkMode, setDarkMode] = useState(true); // Default to true for consistency
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white">Settings</h1>
+        <p className="text-gray-400">Manage your account and workshop preferences.</p>
+      </div>
+
+      <div className="max-w-4xl mx-auto space-y-8">
+        {/* User Profile Section */}
+        <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+             <User className="mr-3 text-gray-400" /> User Profile
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-500">Name</label>
+              {/* This is the corrected line */}
+              <p className="text-lg text-white">John &quot;Boss&quot; Doe (Placeholder)</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-500">Email</label>
+              <p className="text-lg text-white">boss@allamericanmuscle.co.za</p>
+            </div>
+            <Button variant="outline" size="sm">Edit Profile</Button>
+          </div>
+        </div>
+
+        {/* Notifications Section */}
+        <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+            <Bell className="mr-3 text-gray-400" /> Notifications
+          </h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-200">Email Notifications</p>
+                <p className="text-sm text-gray-400">Receive an email when a customer comments.</p>
+              </div>
+              <ToggleSwitch enabled={emailNotifications} setEnabled={setEmailNotifications} />
+            </div>
+          </div>
+        </div>
+        
+        {/* Appearance Section */}
+        <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+            <Palette className="mr-3 text-gray-400" /> Appearance
+          </h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-200">Dark Mode</p>
+                <p className="text-sm text-gray-400">Toggle the UI theme.</p>
+              </div>
+              <ToggleSwitch enabled={darkMode} setEnabled={setDarkMode} />
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+==================== app\(dashboard)\dashboard\timeline\page.tsx ====================
+
+import { mockProjects } from '@/lib/mock-data';
+import { Calendar, Tag } from 'lucide-react';
+import Link from 'next/link';
+
+export default function TimelinePage() {
+  const allUpdates = mockProjects
+    .flatMap(project => 
+      project.timeline.map(update => ({
+        ...update,
+        project,
+      }))
+    )
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white">Global Timeline</h1>
+        <p className="text-gray-400">A chronological feed of all updates across all projects.</p>
+      </div>
+
+      <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+        <div className="relative border-l-2 border-gray-700 ml-4">
+          {allUpdates.map((item) => (
+            <div key={item.id} className="mb-8 pl-8">
+              <span className="absolute -left-[11px] flex items-center justify-center w-6 h-6 bg-red-600 rounded-full ring-8 ring-background">
+                <Calendar className="w-3 h-3 text-white" />
+              </span>
+              <div className="p-4 bg-gray-900 border border-gray-700 rounded-lg">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2">
+                  <Link href={`/dashboard/projects/${item.project.id}`} className="font-semibold text-white hover:text-red-500 transition-colors">
+                    {item.project.car.year} {item.project.car.make} {item.project.car.model}
+                  </Link>
+                  <time className="mt-1 sm:mt-0 text-sm font-normal text-gray-500">
+                    {new Date(item.date).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </time>
+                </div>
+                <p className="text-base font-normal text-gray-300 mb-2">{item.update}</p>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-300">
+                  <Tag className="w-3 h-3 mr-1.5" />
+                  {item.category}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+==================== app\(dashboard)\dashboard\workshop\page.tsx ====================
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { getProjects } from '@/lib/data-service';
+import { Project } from '@/lib/types';
+import WorkshopKanban from '@/components/dashboard/WorkshopKanban';
+
+export default function WorkshopPage() {
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        // We fetch all projects to pass down to the Kanban board
+        setProjects(getProjects());
+        setIsLoading(false);
+    }, []);
+
+    if (isLoading) {
+        return <div className="flex items-center justify-center h-full"><p className="text-gray-400">Loading Workshop Deck...</p></div>;
+    }
+
+    return (
+        <div>
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-white">Workshop Ops Deck</h1>
+                <p className="text-gray-400">A real-time view of all tasks across active projects.</p>
+            </div>
+            <WorkshopKanban allProjects={projects} />
+        </div>
+    );
+}
+
+==================== app\(public)\layout.tsx ====================
+
+import Footer from "@/components/Footer";
+import Header from "@/components/Header";
+
+// This layout will now apply to all pages inside the (public) folder,
+// ensuring the login page and customer project pages are consistent.
+export default function PublicLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      <Header />
+      <main>{children}</main>
+      <Footer />
+    </>
+  );
+}
+
+==================== app\(public)\page.tsx ====================
+
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { LogIn, Search } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Image from 'next/image';
+
+export default function Home() {
+  const router = useRouter();
+  const [projectCode, setProjectCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleCustomerAccess = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    // --- MOCK AUTHENTICATION ---
+    // This now correctly redirects to the new public-facing project page.
+    if (projectCode.trim() === 'mustang-1969-smith' && password === 'smith') {
+      router.push(`/projects/${projectCode.trim()}`);
+    } else {
+      setError('Invalid project code or password.');
+    }
+  };
+
+  return (
+    <div className="relative min-h-screen flex items-center justify-center p-4">
+      {/* Background Image */}
+      <Image
+        src="https://images.unsplash.com/photo-1617546889104-62f321b2383c?q=80&w=2070&auto=format&fit=crop"
+        alt="Classic muscle car in a workshop"
+        fill
+        className="object-cover z-0"
+        unoptimized
+        priority
+      />
+      <div className="absolute inset-0 bg-black/70 z-10"></div>
+
+      {/* Login Portal */}
+      <div className="relative z-20 w-full max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <Image
+            src="http://allamericanmuscle.co.za/wp-content/uploads/2025/01/AAM-Logo-3-Transparent.png"
+            alt="All American Muscle Logo"
+            width={300}
+            height={100}
+            className="mx-auto"
+            priority
+          />
+          <h1 className="text-2xl text-gray-300 mt-2">Restoration Project Tracker</h1>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-8 md:gap-4 backdrop-blur-sm bg-gray-900/50 p-8 rounded-lg border border-white/10">
+          
+          {/* Workshop Login */}
+          <div className="flex flex-col p-6 border-r-0 md:border-r md:border-white/10">
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center">
+              <LogIn className="mr-3 text-red-500" />
+              Workshop Portal
+            </h2>
+            <p className="text-gray-400 mb-6">Internal access for workshop staff.</p>
+            <form className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-300 sr-only">Username</label>
+                <Input type="text" placeholder="Username" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-300 sr-only">Password</label>
+                <Input type="password" placeholder="Password" />
+              </div>
+              <Button href="/dashboard" variant="primary" className="w-full">
+                Login
+              </Button>
+            </form>
+          </div>
+
+          {/* Customer Access */}
+          <div className="flex flex-col p-6">
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center">
+              <Search className="mr-3 text-red-500" />
+              Customer Portal
+            </h2>
+            <p className="text-gray-400 mb-6">Enter your project code and password to see its progress.</p>
+            <form onSubmit={handleCustomerAccess} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-300 sr-only">Project Code</label>
+                <Input 
+                  type="text" 
+                  placeholder="Project Code"
+                  value={projectCode}
+                  onChange={(e) => setProjectCode(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-300 sr-only">Password</label>
+                <Input 
+                  type="password"
+                  placeholder="Password / PIN"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              {error && <p className="text-sm text-red-400">{error}</p>}
+              <Button type="submit" variant="outline" className="w-full">
+                Track My Project
+              </Button>
+            </form>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==================== app\(public)\projects\[projectId]\layout.tsx ====================
+
+import Footer from "@/components/Footer";
+import Header from "@/components/Header";
+
+// This is a new layout file specifically for public-facing pages.
+// It ensures that pages like the login screen and customer project views
+// have a consistent header and footer without affecting the dashboard layout.
+
+export default function PublicLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      <Header />
+      <main>{children}</main>
+      <Footer />
+    </>
+  );
+}
+
+
+==================== app\(public)\projects\[projectId]\page.tsx ====================
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { getProjectById } from '@/lib/data-service';
+import { Project, Message } from '@/lib/types';
+import ProjectHeader from '@/components/ProjectHeader';
+import ProgressCategory from '@/components/ProgressCategory';
+import Timeline from '@/components/Timeline';
+import MediaGallery from '@/components/MediaGallery';
+import { notFound } from 'next/navigation';
+import { calculateOverallProgress } from '@/lib/utils';
+import MessagingCenter from '@/components/dashboard/MessagingCenter';
+// IMPORT THE NEW DECISIONS PANEL
+import DecisionsNeededPanel from '@/components/DecisionsNeededPanel';
+
+export default function CustomerProjectPage({ params }: { params: { projectId: string } }) {
+  const [project, setProject] = useState<Project | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const foundProject = getProjectById(params.projectId);
+    if (foundProject) {
+      setProject(JSON.parse(JSON.stringify(foundProject)));
+    } else {
+      notFound();
+    }
+    setIsLoading(false);
+  }, [params.projectId]);
+
+  const handleSendMessage = (message: Omit<Message, 'id' | 'createdAt'>) => {
+    setProject(currentProject => {
+      if (!currentProject) return null;
+      const newMessage: Message = { ...message, id: `msg-${Date.now()}`, createdAt: new Date().toISOString() };
+      return { ...currentProject, messages: [...currentProject.messages, newMessage] };
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center pt-20">
+        <p className="text-gray-400">Loading Project Details...</p>
+      </div>
+    );
+  }
+
+  if (!project) return notFound();
+
+  const overallProgress = calculateOverallProgress(project);
+  const mediaCategories = [...new Set(project.media.map(item => item.category))];
+  
+  return (
+    <div className="pt-20 bg-grid-pattern">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <ProjectHeader project={project} overallProgress={overallProgress} />
+        
+        {/* DEPLOY THE NEW DECISIONS PANEL */}
+        <DecisionsNeededPanel project={project} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-2 space-y-8" id="progress">
+            <h2 className="text-3xl font-bold text-white">Project Progress</h2>
+             <div className="space-y-6">
+                {project.categories.map(category => (
+                  <ProgressCategory key={category.id} category={category} />
+                ))}
+             </div>
+          </div>
+          <div className="lg:col-span-1" id="timeline">
+            <h2 className="text-3xl font-bold text-white mb-8">Project Timeline</h2>
+            <Timeline updates={project.timeline} />
+          </div>
+        </div>
+
+        <div className="my-12" id="messages">
+            <MessagingCenter project={project} currentUserRole="Client" onSendMessage={handleSendMessage} />
+        </div>
+
+        {project.media.length > 0 && (
+          <div className="mt-16" id="media">
+            <MediaGallery media={project.media} categories={mediaCategories} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+==================== components\DecisionsNeededPanel.tsx ====================
+
+'use client';
+
+import { Project } from '@/lib/types';
+import { HelpCircle, ThumbsUp } from 'lucide-react';
+import { useMemo } from 'react';
+import Button from './ui/Button';
+
+interface DecisionsNeededPanelProps {
+  project: Project;
+}
+
+const DecisionsNeededPanel = ({ project }: DecisionsNeededPanelProps) => {
+  const tasksNeedingApproval = useMemo(() => {
+    return project.categories.flatMap(category => 
+      category.subTasks.filter(task => task.requiresClientApproval && !task.completed)
+    );
+  }, [project]);
+
+  if (tasksNeedingApproval.length === 0) {
+    return null; // Don't render anything if no decisions are needed
+  }
+
+  return (
+    <div className="bg-blue-900/50 border-2 border-blue-500/50 p-6 rounded-lg shadow-large my-12">
+      <div className="flex items-center mb-4">
+        <HelpCircle className="h-8 w-8 text-blue-300 mr-4" />
+        <div>
+            <h2 className="text-2xl font-bold text-white">Decisions Needed</h2>
+            <p className="text-blue-200">Your input is required on the following items to keep the project moving.</p>
+        </div>
+      </div>
+      
+      <div className="space-y-3">
+        {tasksNeedingApproval.map(task => (
+          <div key={task.id} className="bg-gray-800/50 p-3 rounded-md flex items-center justify-between">
+            <p className="font-medium text-gray-200">{task.name}</p>
+            {/* In a real app, this button would trigger a backend mutation */}
+            <Button size="sm" variant="secondary" onClick={() => alert('Approval action would be handled here.')}>
+                <ThumbsUp className="w-4 h-4 mr-2"/>
+                Review & Approve
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default DecisionsNeededPanel;
+
+==================== components\Footer.tsx ====================
+
+'use client';
+
+import { motion } from 'framer-motion';
+import { Mail, Phone, MapPin, ArrowUp } from 'lucide-react';
+
+const Footer = () => {
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'All American Muscle';
+  
+  // Using specific contact details from the company summary
+  const contactEmail = 'parts@allamericanmuscle.co.za';
+  const contactPhone1 = '010 5921 706';
+  const contactPhone2 = '072 0426 477';
+  const address = '15 Tarry Rd, Alrode South, Alberton, 1451';
+
+  return (
+    <footer className="bg-gray-900 text-white border-t border-white/10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Contact Info Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-center md:text-left mb-8">
+          <motion.div 
+            className="flex items-center justify-center md:justify-start"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <Mail className="h-5 w-5 mr-3 flex-shrink-0 text-red-500" />
+            <a href={`mailto:${contactEmail}`} className="text-gray-300 hover:text-white transition-colors">
+              {contactEmail} 
+            </a>
+          </motion.div>
+          <motion.div 
+            className="flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <Phone className="h-5 w-5 mr-3 flex-shrink-0 text-red-500" />
+            <div className="flex flex-col items-center md:items-start">
+              <a href={`tel:${contactPhone1.replace(/\D/g, '')}`} className="text-gray-300 hover:text-white transition-colors">
+                {contactPhone1} 
+              </a>
+               <a href={`tel:${contactPhone2.replace(/\D/g, '')}`} className="text-gray-300 hover:text-white transition-colors">
+                {contactPhone2} 
+              </a>
+            </div>
+          </motion.div>
+          <motion.div 
+            className="flex items-center justify-center md:justify-end"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <MapPin className="h-5 w-5 mr-3 flex-shrink-0 text-red-500" />
+            <span className="text-gray-300">{address} </span>
+          </motion.div>
+        </div>
+
+        {/* Bottom Bar */}
+        <div className="border-t border-gray-800 pt-6">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <p className="text-gray-400 text-sm mb-4 md:mb-0">
+              © {new Date().getFullYear()} {siteName}. Project Tracker.
+            </p>
+            <motion.button
+              onClick={scrollToTop}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white hover:bg-red-700 transition-colors shadow-lg focus-ring"
+              aria-label="Scroll to top"
+            >
+              <ArrowUp className="h-5 w-5" />
+            </motion.button>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+export default Footer;
+
+==================== components\Header.tsx ====================
+
+'use client';
+
+import { useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Menu, X } from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
+
+const Header = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Check if we are on a project detail page
+  const isProjectPage = pathname.includes('/projects/');
+
+  const generalNav = [
+    { name: 'Dashboard', href: '/' },
+  ];
+
+  const projectNav = [
+    { name: 'Progress', href: '#progress' },
+    { name: 'Media', href: '#media' },
+    { name: 'Timeline', href: '#timeline' },
+  ];
+
+  const navItems = isProjectPage ? projectNav : generalNav;
+
+  return (
+    <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-white/10">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-20">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex-shrink-0"
+          >
+            <Link href="/" className="transition-opacity hover:opacity-80">
+              <Image
+                src="http://allamericanmuscle.co.za/wp-content/uploads/2025/01/AAM-Logo-3-Transparent.png"
+                alt="All American Muscle Logo"
+                width={150}
+                height={50}
+                priority
+              />
+            </Link>
+          </motion.div>
+
+          <div className="hidden md:block">
+            <div className="ml-10 flex items-baseline space-x-8">
+              {navItems.map((item, index) => (
+                <motion.a
+                  key={item.name}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  href={item.href}
+                  className="text-gray-300 hover:text-red-500 px-3 py-2 text-sm font-medium transition-colors"
+                >
+                  {item.name}
+                </motion.a>
+              ))}
+            </div>
+          </div>
+          
+          <div className="md:hidden">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="text-gray-300 hover:text-red-500 transition-colors"
+              aria-label="Toggle menu"
+            >
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
+        </div>
+
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="md:hidden border-t border-white/10"
+            >
+              <div className="px-2 pt-2 pb-3 space-y-1">
+                {navItems.map((item) => (
+                  <a
+                    key={item.name}
+                    href={item.href}
+                    className="block text-gray-300 hover:text-red-500 hover:bg-gray-800 rounded-md px-3 py-2 text-base font-medium transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {item.name}
+                  </a>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </nav>
+    </header>
+  );
+};
+
+export default Header;
+
+==================== components\MediaGallery.tsx ====================
+
+'use client';
+
+import { useState } from 'react';
+import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Media } from '@/lib/types';
+import { X } from 'lucide-react';
+
+interface MediaGalleryProps {
+  media: Media[];
+  categories: string[];
+}
+
+const MediaGallery = ({ media, categories }: MediaGalleryProps) => {
+  const [activeFilter, setActiveFilter] = useState('All');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  const filteredMedia = activeFilter === 'All' 
+    ? media 
+    : media.filter(item => item.category === activeFilter);
+
+  return (
+    <div className="mt-12">
+      <h2 className="text-3xl font-bold text-white mb-6">Media Gallery</h2>
+      
+      {/* Filter Buttons */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <button
+          onClick={() => setActiveFilter('All')}
+          className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${
+            activeFilter === 'All' 
+              ? 'bg-red-600 text-white' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+          }`}
+        >
+          All
+        </button>
+        {categories.map(category => (
+          <button
+            key={category}
+            onClick={() => setActiveFilter(category)}
+            className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${
+              activeFilter === category 
+                ? 'bg-red-600 text-white' 
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
+
+      {/* Image Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <AnimatePresence>
+          {filteredMedia.map(item => (
+            <motion.div
+              key={item.id}
+              layout
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.3 }}
+              className="relative aspect-w-16 aspect-h-9 rounded-lg overflow-hidden cursor-pointer group"
+              onClick={() => setSelectedImage(item.url)}
+            >
+              <Image
+                src={item.url}
+                alt={item.caption}
+                fill
+                sizes="(max-width: 768px) 50vw, 33vw"
+                className="object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                <p className="text-white text-xs">{item.caption}</p>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Lightbox Modal */}
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setSelectedImage(null)}
+          >
+            <motion.div
+              layoutId={selectedImage}
+              className="relative w-full max-w-4xl max-h-[90vh]"
+            >
+              <Image
+                src={selectedImage}
+                alt="Selected restoration image"
+                width={1200}
+                height={800}
+                className="object-contain w-full h-full"
+              />
+            </motion.div>
+            <motion.button
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              className="absolute top-4 right-4 text-white hover:text-red-500"
+              onClick={() => setSelectedImage(null)}
+            >
+              <X className="w-8 h-8" />
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default MediaGallery;
+
+==================== components\ProgressCategory.tsx ====================
+
+'use client';
+
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+// NEW: Import HelpCircle icon
+import { ChevronDown, CheckCircle2, Circle, HelpCircle } from 'lucide-react';
+import { Category } from '@/lib/types';
+import ProgressBar from './ui/ProgressBar';
+
+interface ProgressCategoryProps {
+  category: Category;
+}
+
+const ProgressCategory = ({ category }: ProgressCategoryProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const completedTasks = category.subTasks.filter(task => task.completed).length;
+  const totalTasks = category.subTasks.length;
+  const categoryProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+  return (
+    <motion.div
+      layout
+      initial={{ borderRadius: 8 }}
+      className="bg-gray-900/50 backdrop-blur-sm border border-white/10 shadow-soft overflow-hidden rounded-lg"
+    >
+      <motion.header
+        initial={false}
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
+      >
+        <div className="flex-grow">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-lg font-semibold text-gray-100">{category.name}</h3>
+            <span className="text-sm font-medium text-gray-400">{`${completedTasks}/${totalTasks} tasks`}</span>
+          </div>
+          <ProgressBar progress={categoryProgress} />
+        </div>
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="ml-4"
+        >
+          <ChevronDown className="h-5 w-5 text-gray-400" />
+        </motion.div>
+      </motion.header>
+      
+      <AnimatePresence>
+        {isOpen && (
+          <motion.section
+            key="content"
+            initial="collapsed"
+            animate="open"
+            exit="collapsed"
+            variants={{ open: { opacity: 1, height: 'auto' }, collapsed: { opacity: 0, height: 0 } }}
+            transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
+            className="px-4 pb-4"
+          >
+            <ul className="space-y-3 pt-4 border-t border-white/10">
+              {category.subTasks.map(task => (
+                <li key={task.id} className={`flex items-center p-2 rounded-md ${task.requiresClientApproval && !task.completed ? 'bg-blue-900/50' : ''}`}>
+                  {task.completed ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-400 mr-3 flex-shrink-0" />
+                  ) : (
+                    <Circle className="h-5 w-5 text-gray-600 mr-3 flex-shrink-0" />
+                  )}
+                  <span className={`text-gray-300 ${task.completed ? 'line-through text-gray-500' : ''}`}>
+                    {task.name}
+                  </span>
+                  {/* NEW: Highlight tasks needing approval */}
+                  {task.requiresClientApproval && !task.completed && (
+                    <span className="ml-auto flex items-center text-xs font-semibold text-blue-300 bg-blue-900 px-2 py-1 rounded-full">
+                        <HelpCircle className="h-3 w-3 mr-1.5" />
+                        Decision Needed
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </motion.section>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
+export default ProgressCategory;
+
+==================== components\ProjectHeader.tsx ====================
+
+'use client';
+
+import { motion } from 'framer-motion';
+import { Project } from '@/lib/types';
+import ProgressBar from './ui/ProgressBar';
+import Button from './ui/Button';
+import { Edit } from 'lucide-react';
+
+interface ProjectHeaderProps {
+  project: Project;
+  overallProgress: number;
+  onEdit?: () => void;
+}
+
+const ProjectHeader = ({ project, overallProgress, onEdit }: ProjectHeaderProps) => {
+  const { car, customerName, status, holdReason } = project; // Destructure holdReason
+  
+  const statusClasses = {
+    Active: 'bg-green-900/50 text-green-300 border border-green-500/30',
+    'On Hold': 'bg-yellow-900/50 text-yellow-300 border border-yellow-500/30',
+    Completed: 'bg-red-900/50 text-red-300 border border-red-500/30',
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="bg-gray-900/50 backdrop-blur-sm border border-white/10 shadow-large rounded-lg p-6 md:p-8 mb-12"
+    >
+      <div className="flex flex-col md:flex-row justify-between items-start mb-6">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-white">
+            {car.year} {car.make} {car.model}
+          </h1>
+          <p className="text-lg text-gray-400">
+            Project for: <span className="font-semibold text-gray-200">{customerName}</span>
+          </p>
+        </div>
+        <div className="flex items-center space-x-4 mt-4 md:mt-0">
+          <div className="text-right">
+            <div className={`text-sm font-medium px-3 py-1 rounded-full inline-block ${statusClasses[status]}`}>
+              {status}
+            </div>
+            {/* NEW: Conditionally render the hold reason */}
+            {status === 'On Hold' && holdReason && (
+              <p className="text-xs text-yellow-300 mt-1">{holdReason}</p>
+            )}
+          </div>
+          {onEdit && (
+            <Button onClick={onEdit} variant="outline" size="sm">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          )}
+        </div>
+      </div>
+      <div>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm font-medium text-gray-300">Overall Progress</span>
+          <span className="text-lg font-bold text-red-500">{Math.round(overallProgress)}%</span>
+        </div>
+        <ProgressBar progress={overallProgress} />
+      </div>
+    </motion.div>
+  );
+};
+
+export default ProjectHeader;
+
+==================== components\Timeline.tsx ====================
+
+'use client';
+
+import { motion } from 'framer-motion';
+import { TimelineUpdate } from '@/lib/types';
+import { Calendar, Tag } from 'lucide-react';
+
+interface TimelineProps {
+  updates: TimelineUpdate[];
+}
+
+const Timeline = ({ updates }: TimelineProps) => {
+  return (
+    <div>
+      {/* The h2 title is now managed by the parent page for better context */}
+      <div className="relative border-l-2 border-gray-700 ml-4">
+        {updates.map((item, index) => (
+          <motion.div
+            key={item.id}
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: index * 0.1 }}
+            className="mb-8 pl-8"
+          >
+            {/* Ring color updated for dark background */}
+            <span className="absolute -left-[11px] flex items-center justify-center w-6 h-6 bg-red-600 rounded-full ring-8 ring-background">
+              <Calendar className="w-3 h-3 text-white" />
+            </span>
+            {/* Component colors updated for dark background */}
+            <div className="p-4 bg-gray-800 border border-gray-700 rounded-lg shadow-soft">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2">
+                <time className="mb-1 text-sm font-normal leading-none text-gray-400 sm:mb-0">
+                  {new Date(item.date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </time>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-300">
+                  <Tag className="w-3 h-3 mr-1.5" />
+                  {item.category}
+                </span>
+              </div>
+              <p className="text-base font-normal text-gray-300">{item.update}</p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default Timeline;
+
+
+==================== components\dashboard\ActionRequiredFeed.tsx ====================
+
+'use client';
+
+import { Project } from '@/lib/types';
+// Corrected: Removed unused 'AlertTriangle'
+import { DollarSign, MessageCircle, Clock } from 'lucide-react';
+import Link from 'next/link';
+import { useMemo } from 'react';
+
+interface ActionRequiredFeedProps {
+  projects: Project[];
+}
+
+const generateActionItems = (projects: Project[]) => {
+    const items = [];
+
+    for (const project of projects) {
+        if (project.status === 'On Hold' && project.holdReason === 'Awaiting Payment') {
+            items.push({
+                id: `payment-${project.id}`,
+                type: 'Payment',
+                text: `Payment pending for ${project.car.year} ${project.car.make}.`,
+                projectId: project.id,
+                icon: DollarSign,
+                color: 'blue'
+            });
+        }
+
+        for (const message of project.messages) {
+            if (message.visibleTo === 'BossOnly' && message.author === 'Client') {
+                items.push({
+                    id: `message-${message.id}`,
+                    type: 'Message',
+                    text: `New confidential message from ${project.customerName}.`,
+                    projectId: project.id,
+                    icon: MessageCircle,
+                    color: 'purple'
+                });
+            }
+        }
+    }
+    
+    items.push({
+        id: `overdue-placeholder`,
+        type: 'Overdue',
+        text: `Mustang project is 2 weeks overdue on Engine Assembly.`,
+        projectId: 'mustang-1969-smith',
+        icon: Clock,
+        color: 'red'
+    });
+
+
+    return items;
+};
+
+
+const ActionRequiredFeed = ({ projects }: ActionRequiredFeedProps) => {
+  const actionItems = useMemo(() => generateActionItems(projects), [projects]);
+
+  return (
+    <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+      <h3 className="text-xl font-bold text-white mb-4">Action Required</h3>
+      {actionItems.length > 0 ? (
+        <ul className="space-y-4">
+          {actionItems.map(item => (
+            <li key={item.id}>
+              <Link href={`/dashboard/projects/${item.projectId}`} className="flex items-start p-2 rounded-md hover:bg-gray-700/50 transition-colors">
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-${item.color}-900/50 border border-${item.color}-500/30`}>
+                    <item.icon className={`h-5 w-5 text-${item.color}-400`} />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-200">{item.text}</p>
+                  <p className="text-xs text-gray-500">{item.type}</p>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-gray-500 text-center py-4">The workshop is running smoothly. No actions required.</p>
+      )}
+    </div>
+  );
+};
+
+export default ActionRequiredFeed;
+
+==================== components\dashboard\ActivityFeed.tsx ====================
+
+import { Project } from '@/lib/types';
+import { Clock } from 'lucide-react';
+import Link from 'next/link';
+
+interface ActivityFeedProps {
+  projects: Project[];
+}
+
+const ActivityFeed = ({ projects }: ActivityFeedProps) => {
+  const allUpdates = projects
+    .flatMap(p => 
+      p.timeline.map(t => ({ ...t, project: p }))
+    )
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
+
+  return (
+    // Updated component to a dark theme
+    <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+      <h3 className="text-xl font-bold text-white mb-4">Recent Activity</h3>
+      <ul className="space-y-4">
+        {allUpdates.map(item => (
+          <li key={item.id} className="flex items-start">
+            <div className="w-8 h-8 flex-shrink-0 bg-gray-700 rounded-full flex items-center justify-center mr-4">
+              <Clock className="w-4 h-4 text-gray-400" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-300">
+                <Link href={`/dashboard/projects/${item.project.id}`} className="font-semibold text-red-500 hover:underline">
+                  {item.project.car.year} {item.project.car.model}:
+                </Link>
+                {' '}{item.update}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </p>
+            </div>
+          </li>
+         ))}
+      </ul>
+    </div>
+  );
+};
+
+export default ActivityFeed;
+
+==================== components\dashboard\AddTimelineForm.tsx ====================
+
+'use client';
+
+import { useState } from 'react';
+import { Project, TimelineUpdate } from '@/lib/types';
+import Button from '../ui/Button';
+
+interface AddTimelineFormProps {
+  project: Project;
+  onAddUpdate: (newUpdate: Omit<TimelineUpdate, 'id' | 'date'>) => void;
+}
+
+const AddTimelineForm = ({ project, onAddUpdate }: AddTimelineFormProps) => {
+  const [updateText, setUpdateText] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(project.categories[0]?.name || '');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!updateText.trim() || !selectedCategory) return;
+
+    onAddUpdate({
+      update: updateText,
+      category: selectedCategory,
+    });
+    setUpdateText('');
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label htmlFor="updateText" className="block text-sm font-medium text-gray-300">
+          New Update
+        </label>
+        <textarea
+          id="updateText"
+          rows={4}
+          value={updateText}
+          onChange={(e) => setUpdateText(e.target.value)}
+          className="mt-1 block w-full rounded-md bg-gray-900 border-gray-600 text-white placeholder-gray-400 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm"
+          placeholder="e.g., Engine block returned from machine shop."
+          required
+        />
+      </div>
+      <div>
+        <label htmlFor="category" className="block text-sm font-medium text-gray-300">
+          Category
+        </label>
+        <select
+          id="category"
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="mt-1 block w-full rounded-md bg-gray-900 border-gray-600 py-2 pl-3 pr-10 text-base text-white focus:border-red-500 focus:outline-none focus:ring-red-500 sm:text-sm"
+        >
+          {project.categories.map(cat => (
+            <option key={cat.id} className="bg-gray-800 text-white">{cat.name}</option>
+          ))}
+        </select>
+      </div>
+      <Button type="submit" variant="primary" className="w-full">
+        Add Update to Timeline
+      </Button>
+    </form>
+  );
+};
+
+export default AddTimelineForm;
+
+==================== components\dashboard\AlertsPanel.tsx ====================
+
+import { AlertTriangle, MessageSquare, Clock } from 'lucide-react';
+import React from 'react';
+
+interface AlertItemProps {
+  icon: React.ElementType;
+  text: string;
+  subtext: string;
+  color: string;
+}
+
+const AlertItem = ({ icon: Icon, text, subtext, color }: AlertItemProps) => (
+  // Updated AlertItem to a dark theme
+  <div className="flex items-start">
+    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-${color}-900/50 border border-${color}-500/30`}>
+      <Icon className={`h-5 w-5 text-${color}-400`} />
+    </div>
+    <div className="ml-3">
+      <p className="text-sm font-medium text-gray-200">{text}</p>
+      <p className="text-xs text-gray-500">{subtext}</p>
+    </div>
+  </div>
+);
+
+const AlertsPanel = () => {
+  // This is mock data for demonstration.
+  const alerts = [
+    { icon: AlertTriangle, text: 'Mustang project is 2 weeks overdue', subtext: 'Chassis & Suspension', color: 'red' },
+    { icon: MessageSquare, text: 'New comment from Jane Jones', subtext: '1969 Camaro SS', color: 'blue' },
+    { icon: Clock, text: 'Upcoming Delivery: Dodge Charger', subtext: 'Scheduled for next Friday', color: 'purple' },
+  ];
+  
+  return (
+    // Updated Panel to a dark theme
+    <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+      <h3 className="text-xl font-bold text-white mb-4">Alerts & Notifications</h3>
+      <div className="space-y-4">
+        {alerts.map((alert, index) => (
+          <AlertItem key={index} {...alert} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default AlertsPanel;
+
+==================== components\dashboard\DashboardHeader.tsx ====================
+
+'use client';
+
+import { Bell, Menu } from 'lucide-react';
+
+interface FilterButtonProps {
+  filter: string;
+  activeFilter: string;
+  onFilterChange: (filter: string) => void;
+}
+
+const FilterButton = ({ filter, activeFilter, onFilterChange }: FilterButtonProps) => (
+    <button
+        onClick={() => onFilterChange(filter)}
+        className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+            activeFilter === filter
+                ? 'bg-gray-700 text-white'
+                : 'text-gray-400 hover:text-white hover:bg-gray-800'
+        }`}
+    >
+        {filter}
+    </button>
+);
+
+interface DashboardHeaderProps {
+  onMenuClick: () => void;
+  activeFilter?: string; 
+  onFilterChange?: (filter: string) => void;
+}
+
+const DashboardHeader = ({ onMenuClick, activeFilter, onFilterChange }: DashboardHeaderProps) => {
+  const filters = ['Today', 'This Week', 'This Month', 'All Time'];
+
+  return (
+    // Updated header to a dark theme to match the dashboard layout
+    <header className="flex-shrink-0 bg-gray-900 border-b border-white/10">
+      <div className="flex items-center justify-between p-4 h-16">
+        <div className="flex items-center">
+          <button
+            onClick={onMenuClick}
+            className="md:hidden text-gray-400 hover:text-white mr-4"
+            aria-label="Open sidebar"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          
+          {activeFilter && onFilterChange && (
+            <div className="hidden sm:flex items-center space-x-2 bg-gray-800 border border-white/10 rounded-lg p-1">
+              {filters.map(f => (
+                  <FilterButton key={f} filter={f} activeFilter={activeFilter} onFilterChange={onFilterChange} />
+              ))}
+            </div>
+          )}
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          <Bell className="h-6 w-6 text-gray-400 cursor-pointer hover:text-white" />
+          <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center text-sm font-bold text-gray-300">
+           JD
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+export default DashboardHeader;
+
+==================== components\dashboard\EditProjectModal.tsx ====================
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Project } from '@/lib/types';
+import Input from '../ui/Input';
+import Button from '../ui/Button';
+
+interface EditProjectModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (updatedData: Partial<Project>) => void;
+  project: Project;
+}
+
+const EditProjectModal = ({ isOpen, onClose, onSave, project }: EditProjectModalProps) => {
+  const [customerName, setCustomerName] = useState(project.customerName);
+  const [carYear, setCarYear] = useState(project.car.year.toString());
+  const [carMake, setCarMake] = useState(project.car.make);
+  const [carModel, setCarModel] = useState(project.car.model);
+
+  useEffect(() => {
+    if (project) {
+        setCustomerName(project.customerName);
+        setCarYear(project.car.year.toString());
+        setCarMake(project.car.make);
+        setCarModel(project.car.model);
+    }
+  }, [project]);
+
+  const handleSave = () => {
+    onSave({
+      customerName,
+      car: {
+        year: parseInt(carYear) || 0,
+        make: carMake,
+        model: carModel,
+      },
+    });
+    onClose();
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            className="relative bg-gray-800 border border-white/10 w-full max-w-lg rounded-lg shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+                <h2 className="text-xl font-bold text-white">Edit Project Details</h2>
+                {/* Corrected: Replaced ' with &apos; to fix the linting error */}
+                <p className="text-sm text-gray-400 mt-1">Make changes to the project&apos;s core information.</p>
+            </div>
+            
+            <div className="p-6 border-t border-gray-700 space-y-4">
+                 <div>
+                    <label className="text-sm font-medium text-gray-300">Customer Name</label>
+                    <Input value={customerName} onChange={e => setCustomerName(e.target.value)} className="mt-1" />
+                 </div>
+                 <div className="grid grid-cols-3 gap-4">
+                    <div>
+                        <label className="text-sm font-medium text-gray-300">Year</label>
+                        <Input type="number" value={carYear} onChange={e => setCarYear(e.target.value)} className="mt-1" />
+                    </div>
+                    <div className="col-span-2">
+                        <label className="text-sm font-medium text-gray-300">Make</label>
+                        <Input value={carMake} onChange={e => setCarMake(e.target.value)} className="mt-1" />
+                    </div>
+                 </div>
+                 <div>
+                    <label className="text-sm font-medium text-gray-300">Model</label>
+                    <Input value={carModel} onChange={e => setCarModel(e.target.value)} className="mt-1" />
+                 </div>
+            </div>
+            
+            <div className="p-4 bg-gray-900/50 flex justify-end space-x-2 rounded-b-lg">
+                <Button onClick={onClose} variant="secondary" size="sm">Cancel</Button>
+                <Button onClick={handleSave} variant="primary" size="sm">Save Changes</Button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+export default EditProjectModal;
+
+==================== components\dashboard\FinancialsPanel.tsx ====================
+
+'use client';
+
+import { Project, Invoice } from '@/lib/types';
+import { DollarSign, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import Button from '../ui/Button';
+
+interface FinancialsPanelProps {
+  project: Project;
+  onMarkAsPaid: (invoiceId: string) => void;
+}
+
+const FinancialsPanel = ({ project, onMarkAsPaid }: FinancialsPanelProps) => {
+  const { financials } = project;
+  const balanceDue = financials.totalQuoted - financials.totalPaid;
+
+  const getStatusIcon = (status: Invoice['status']) => {
+    switch (status) {
+      case 'Paid':
+        return <CheckCircle className="h-5 w-5 text-green-400" />;
+      case 'Pending':
+        return <Clock className="h-5 w-5 text-yellow-400" />;
+      case 'Overdue':
+        return <AlertTriangle className="h-5 w-5 text-red-400" />;
+      default:
+        return null;
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount);
+  };
+
+  return (
+    <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+      <h3 className="text-xl font-bold text-white mb-6">Financial Overview</h3>
+      
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-gray-900/50 p-4 rounded-md">
+          <p className="text-sm text-gray-400">Total Quoted</p>
+          <p className="text-2xl font-bold text-white">{formatCurrency(financials.totalQuoted)}</p>
+        </div>
+        <div className="bg-gray-900/50 p-4 rounded-md">
+          <p className="text-sm text-gray-400">Total Paid</p>
+          <p className="text-2xl font-bold text-green-400">{formatCurrency(financials.totalPaid)}</p>
+        </div>
+        <div className="bg-gray-900/50 p-4 rounded-md">
+          <p className="text-sm text-gray-400">Balance Due</p>
+          <p className="text-2xl font-bold text-yellow-400">{formatCurrency(balanceDue)}</p>
+        </div>
+      </div>
+
+      {/* Invoices List */}
+      <div>
+        <h4 className="text-lg font-semibold text-white mb-4">Invoices</h4>
+        <div className="space-y-3">
+          {financials.invoices.map(invoice => (
+            <div key={invoice.id} className="bg-gray-900/50 p-3 rounded-md flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center mb-2 sm:mb-0">
+                {getStatusIcon(invoice.status)}
+                <div className="ml-3">
+                  <p className="font-medium text-gray-200">{invoice.description}</p>
+                  <p className="text-xs text-gray-500">Due: {invoice.dueDate}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                 <p className="text-lg font-semibold text-white sm:mx-4">{formatCurrency(invoice.amount)}</p>
+                 {invoice.status !== 'Paid' && (
+                    <Button 
+                        size="sm" 
+                        variant="secondary" 
+                        onClick={() => onMarkAsPaid(invoice.id)}
+                    >
+                        <DollarSign className="w-4 h-4 mr-2" /> Mark as Paid
+                    </Button>
+                 )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FinancialsPanel;
+
+==================== components\dashboard\InteractiveProgressCategory.tsx ====================
+
+'use client';
+
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+// NEW: Import the HelpCircle icon for our new button
+import { ChevronDown, CheckCircle2, Circle, HelpCircle } from 'lucide-react';
+import { Category, Technician } from '@/lib/types';
+import ProgressBar from '../ui/ProgressBar';
+
+interface InteractiveProgressCategoryProps {
+  category: Category;
+  technicians: Technician[];
+  onTaskToggle: (taskId: string, categoryId: string) => void;
+  onTaskAssign: (taskId:string, categoryId: string, techId: string) => void;
+  // NEW: Callback for toggling the approval flag
+  onToggleApproval: (taskId: string, categoryId: string) => void;
+}
+
+const InteractiveProgressCategory = ({ category, technicians, onTaskToggle, onTaskAssign, onToggleApproval }: InteractiveProgressCategoryProps) => {
+  const [isOpen, setIsOpen] = useState(true);
+  const completedTasks = category.subTasks.filter(task => task.completed).length;
+  const totalTasks = category.subTasks.length;
+  const categoryProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+  return (
+    <div className="bg-gray-800 border border-white/10 shadow-soft overflow-hidden rounded-lg">
+      <header
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-700/50"
+      >
+        <div className="flex-grow">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-lg font-semibold text-white">{category.name}</h3>
+            <span className="text-sm font-medium text-gray-400">{`${completedTasks}/${totalTasks} tasks`}</span>
+          </div>
+          <ProgressBar progress={categoryProgress} />
+        </div>
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="ml-4"
+        >
+            <ChevronDown className="h-5 w-5 text-gray-400" />
+        </motion.div>
+      </header>
+      
+      <AnimatePresence>
+        {isOpen && (
+          <motion.section
+            key="content"
+            initial="collapsed"
+            animate="open"
+            exit="collapsed"
+            variants={{
+              open: { opacity: 1, height: 'auto' },
+              collapsed: { opacity: 0, height: 0 },
+            }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="px-4 pb-4"
+          >
+            <ul className="space-y-1 pt-4 border-t border-gray-700">
+              {category.subTasks.map(task => (
+                <li 
+                  key={task.id} 
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-md hover:bg-gray-700/50"
+                >
+                  <div 
+                    onClick={() => onTaskToggle(task.id, category.id)}
+                    className="flex items-center cursor-pointer mb-2 sm:mb-0 flex-grow"
+                  >
+                    {task.completed ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-400 mr-3 flex-shrink-0" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" />
+                    )}
+                    <span className={`text-gray-300 ${task.completed ? 'line-through text-gray-500' : ''}`}>
+                      {task.name}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center self-end sm:self-center ml-4 sm:ml-2">
+                      {/* NEW: Button to flag a task for client approval */}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onToggleApproval(task.id, category.id); }}
+                        className={`p-1 rounded-full transition-colors mr-2 ${task.requiresClientApproval ? 'bg-blue-900/80 text-blue-300' : 'text-gray-500 hover:bg-gray-700'}`}
+                        title="Request Client Approval"
+                      >
+                        <HelpCircle className="h-4 w-4" />
+                      </button>
+
+                      <select
+                        value={task.assignedTo || ''}
+                        onChange={(e) => onTaskAssign(task.id, category.id, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-red-500 focus:ring-red-500"
+                      >
+                          <option value="">Unassigned</option>
+                          {technicians.map(tech => (
+                              <option key={tech.id} value={tech.id}>{tech.name}</option>
+                          ))}
+                      </select>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </motion.section>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default InteractiveProgressCategory;
+
+==================== components\dashboard\InternalNotes.tsx ====================
+
+'use client';
+
+import { useState } from 'react';
+import { InternalNote } from '@/lib/types';
+import Button from '../ui/Button';
+import { MessageSquarePlus } from 'lucide-react';
+
+interface InternalNotesProps {
+  notes: InternalNote[];
+  onAddNote: (noteText: string) => void;
+}
+
+const InternalNotes = ({ notes, onAddNote }: InternalNotesProps) => {
+  const [newNote, setNewNote] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNote.trim()) return;
+    onAddNote(newNote);
+    setNewNote('');
+  };
+
+  return (
+    <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+      <h3 className="text-xl font-bold text-white mb-4">Internal Workshop Notes</h3>
+      
+      <form onSubmit={handleSubmit} className="mb-6">
+        <textarea
+          rows={3}
+          value={newNote}
+          onChange={(e) => setNewNote(e.target.value)}
+          className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+          placeholder="Add a new note for the workshop team..."
+        />
+        <Button type="submit" variant="secondary" size="sm" className="mt-2" disabled={!newNote.trim()}>
+          <MessageSquarePlus className="w-4 h-4 mr-2" />
+          Add Note
+        </Button>
+      </form>
+      
+      <div className="space-y-4">
+        {notes.length > 0 ? (
+          notes.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(note => (
+            <div key={note.id} className="p-3 bg-gray-900/50 rounded-md border border-gray-700">
+              <p className="text-sm text-gray-300">{note.note}</p>
+              <p className="text-xs text-gray-500 mt-2">
+                - <span className="font-semibold text-gray-400">{note.author}</span> on {new Date(note.createdAt).toLocaleString()}
+              </p>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-gray-500">No internal notes for this project yet.</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default InternalNotes;
+
+==================== components\dashboard\MessagingCenter.tsx ====================
+
+'use client';
+
+import { useState } from 'react';
+import { Project, Message } from '@/lib/types';
+import Button from '../ui/Button';
+// Corrected: Removed unused 'MessageSquarePlus'
+import { Send, Eye, EyeOff } from 'lucide-react';
+
+interface MessagingCenterProps {
+  project: Project;
+  currentUserRole: 'Client' | 'Boss' | 'Manager';
+  onSendMessage: (message: Omit<Message, 'id' | 'createdAt'>) => void;
+}
+
+// Define a specific type for our visibility options
+type MessageVisibility = 'All' | 'BossOnly' | 'StaffOnly';
+
+const MessagingCenter = ({ project, currentUserRole, onSendMessage }: MessagingCenterProps) => {
+  const [newMessage, setNewMessage] = useState('');
+  const [visibility, setVisibility] = useState<MessageVisibility>('All');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
+
+    onSendMessage({
+      author: currentUserRole,
+      text: newMessage,
+      visibleTo: visibility,
+    });
+
+    setNewMessage('');
+    setVisibility(currentUserRole === 'Client' ? 'All' : 'StaffOnly');
+  };
+  
+  const filteredMessages = project.messages.filter(msg => {
+    if (currentUserRole === 'Boss') return true;
+    if (currentUserRole === 'Manager') return msg.visibleTo !== 'BossOnly';
+    if (currentUserRole === 'Client') return msg.visibleTo === 'All';
+    return false;
+  }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+  return (
+    <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+      <h3 className="text-xl font-bold text-white mb-4">Communication Center</h3>
+      
+      <div className="h-64 overflow-y-auto mb-4 p-3 bg-gray-900/50 rounded-md border border-gray-700 space-y-4">
+        {filteredMessages.length > 0 ? (
+          filteredMessages.map(msg => (
+            <div key={msg.id} className={`flex flex-col ${msg.author === 'Client' ? 'items-start' : 'items-end'}`}>
+              <div className={`max-w-xs lg:max-w-md p-3 rounded-lg ${msg.author === 'Client' ? 'bg-gray-700' : 'bg-red-900/80'}`}>
+                <p className="text-sm text-white">{msg.text}</p>
+              </div>
+              <p className="text-xs text-gray-500 mt-1 px-1">
+                {msg.author} - {new Date(msg.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                {currentUserRole === 'Boss' && msg.visibleTo !== 'All' && (
+                  <span className='ml-2 inline-flex items-center text-yellow-400'>({msg.visibleTo === 'BossOnly' ? <EyeOff className='h-3 w-3 mr-1'/> : <Eye className='h-3 w-3 mr-1'/>}{msg.visibleTo})</span>
+                )}
+              </p>
+            </div>
+          ))
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-gray-500">No messages yet. Start the conversation!</p>
+          </div>
+        )}
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        <textarea
+          rows={3}
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+          placeholder={currentUserRole === 'Client' ? "Have a question? Send a message..." : "Type your reply or internal note..."}
+        />
+        <div className="flex justify-between items-center mt-2">
+            <div className="flex items-center space-x-2 text-sm">
+                {currentUserRole === 'Client' && (
+                    // Corrected: Cast to our specific MessageVisibility type
+                    <select value={visibility} onChange={e => setVisibility(e.target.value as MessageVisibility)} className="text-xs rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-red-500 focus:ring-red-500">
+                        <option value="All">To Boss & Manager</option>
+                        <option value="BossOnly">To Boss Only (Confidential)</option>
+                    </select>
+                )}
+                {currentUserRole !== 'Client' && (
+                    // Corrected: Cast to our specific MessageVisibility type
+                    <select value={visibility} onChange={e => setVisibility(e.target.value as MessageVisibility)} className="text-xs rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-red-500 focus:ring-red-500">
+                        <option value="All">Reply to Client</option>
+                        <option value="StaffOnly">Internal Note (Staff Only)</option>
+                    </select>
+                )}
+            </div>
+            <Button type="submit" variant="primary" size="sm" disabled={!newMessage.trim()}>
+                Send <Send className="w-4 h-4 ml-2" />
+            </Button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default MessagingCenter;
+
+==================== components\dashboard\PhotoHighlights.tsx ====================
+
+import { getRecentMedia } from '@/lib/data-service';
+import Image from 'next/image';
+
+const PhotoHighlights = () => {
+  const recentMedia = getRecentMedia(4); // Get the latest 4 images
+
+  return (
+    <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+      <h3 className="text-xl font-bold text-white mb-4">Photo Highlights</h3>
+      {recentMedia.length > 0 ? (
+        <div className="grid grid-cols-2 gap-4">
+          {recentMedia.map(item => (
+            <div key={item.id} className="relative aspect-square rounded-md overflow-hidden group">
+              <Image
+                src={item.url}
+                alt={item.caption}
+                fill
+                sizes="200px"
+                className="object-cover group-hover:scale-105 transition-transform"
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-gray-500">No recent photos uploaded.</p>
+      )}
+    </div>
+  );
+};
+
+export default PhotoHighlights;
+
+==================== components\dashboard\ProjectStatusUpdater.tsx ====================
+
+'use client';
+
+import { Project } from '@/lib/types';
+import { useState } from 'react';
+
+interface ProjectStatusUpdaterProps {
+  currentStatus: Project['status'];
+  onStatusChange: (newStatus: Project['status'], holdReason: Project['holdReason']) => void;
+}
+
+const statusOptions: Project['status'][] = ['Active', 'On Hold', 'Completed'];
+const holdReasonOptions: NonNullable<Project['holdReason']>[] = ['Awaiting Parts', 'Awaiting Payment', 'Awaiting Client Decision'];
+
+const ProjectStatusUpdater = ({ currentStatus, onStatusChange }: ProjectStatusUpdaterProps) => {
+  const [newStatus, setNewStatus] = useState(currentStatus);
+  const [holdReason, setHoldReason] = useState<Project['holdReason']>('');
+  
+  const handleUpdate = () => {
+    if (newStatus !== currentStatus) {
+      // If the status is not 'On Hold', we clear the reason. Otherwise, we pass it.
+      const reasonForUpdate = newStatus === 'On Hold' ? holdReason : '';
+      
+      // The parent component handles creating the timeline update. We just pass the data.
+      onStatusChange(newStatus, reasonForUpdate);
+    }
+  };
+  
+  return (
+    <div className="space-y-4">
+        <div>
+            <label htmlFor="status" className="block text-sm font-medium text-gray-300">
+                Project Status
+            </label>
+            <select
+                id="status"
+                value={newStatus}
+                onChange={(e) => setNewStatus(e.target.value as Project['status'])}
+                className="mt-1 block w-full rounded-md bg-gray-900 border-gray-600 text-white shadow-sm focus:border-red-500 focus:ring-red-500"
+            >
+                {statusOptions.map(option => (
+                  <option key={option} value={option} className="bg-gray-800 text-white">{option}</option>
+                ))}
+            </select>
+        </div>
+        
+        {newStatus === 'On Hold' && (
+             <div>
+                <label htmlFor="holdReason" className="block text-sm font-medium text-gray-300">
+                    Reason for Hold
+                </label>
+                <select
+                    id="holdReason"
+                    value={holdReason}
+                    onChange={(e) => setHoldReason(e.target.value as Project['holdReason'])}
+                    className="mt-1 block w-full rounded-md bg-gray-900 border-gray-600 text-white placeholder-gray-400 shadow-sm focus:border-red-500 focus:ring-red-500"
+                    required
+                >
+                    <option value="" disabled>Select a reason...</option>
+                    {holdReasonOptions.map(option => (
+                      <option key={option} value={option} className="bg-gray-800 text-white">{option}</option>
+                    ))}
+                </select>
+            </div>
+        )}
+
+        <button
+            onClick={handleUpdate}
+            disabled={newStatus === currentStatus || (newStatus === 'On Hold' && !holdReason)}
+            className="w-full px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+        >
+            Update Status
+        </button>
+    </div>
+  );
+};
+
+export default ProjectStatusUpdater;
+
+==================== components\dashboard\ProjectSummaryCard.tsx ====================
+
+import { Project } from '@/lib/types';
+import Image from 'next/image';
+import Link from 'next/link';
+import ProgressBar from '../ui/ProgressBar';
+
+interface ProjectSummaryCardProps {
+  project: Project;
+  progress: number;
+}
+
+const ProjectSummaryCard = ({ project, progress }: ProjectSummaryCardProps) => {
+  const statusClasses = {
+    Active: 'bg-green-900/50 text-green-300 border border-green-500/30',
+    'On Hold': 'bg-yellow-900/50 text-yellow-300 border border-yellow-500/30',
+    Completed: 'bg-red-900/50 text-red-300 border border-red-500/30',
+  };
+  const photoUrl = project.media.length > 0 ? project.media[0].url : 'https://images.unsplash.com/photo-1588258933833-28b2b5161d87?q=80&w=870&auto=format&fit=crop';
+
+  return (
+    <div className="bg-gray-800 border border-white/10 rounded-lg shadow-soft overflow-hidden transition-transform hover:-translate-y-1">
+      <div className="relative h-40">
+        <Image 
+          src={photoUrl} 
+          alt={`${project.car.make} ${project.car.model}`}
+          fill
+          className="object-cover"
+        />
+      </div>
+      <div className="p-6">
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <p className="font-bold text-lg text-white">{project.car.year} {project.car.make} {project.car.model}</p>
+            <p className="text-sm text-gray-400">{project.customerName}</p>
+          </div>
+          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusClasses[project.status]}`}>
+            {project.status}
+          </span>
+        </div>
+        <div className="mt-4">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-xs font-medium text-gray-400">Progress</span>
+            <span className="text-xs font-bold text-red-500">{Math.round(progress)}%</span>
+          </div>
+          <ProgressBar progress={progress} />
+        </div>
+        <Link href={`/dashboard/projects/${project.id}`} className="block w-full text-center mt-6 bg-red-600 text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-red-700 transition-colors">
+          View Details
+        </Link>
+      </div>
+    </div>
+  );
+};
+
+export default ProjectSummaryCard;
+
+==================== components\dashboard\QuickStats.tsx ====================
+
+import { Car, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Project } from '@/lib/types';
+import StatCard from './StatCard'; // Import the new reusable component
+
+interface QuickStatsProps {
+  projects: Project[];
+}
+
+const QuickStats = ({ projects }: QuickStatsProps) => {
+  const activeProjects = projects.filter(p => p.status === 'Active').length;
+  const onHoldProjects = projects.filter(p => p.status === 'On Hold').length;
+  
+  // Dummy data for other stats
+  const completedThisMonth = 1;
+  const upcomingDeliveries = 2;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <StatCard icon={Car} title="Active Projects" value={activeProjects} colorClass="bg-red-600" />
+      <StatCard icon={CheckCircle} title="Completed This Month" value={completedThisMonth} colorClass="bg-green-600" />
+      <StatCard icon={Clock} title="Upcoming Deliveries" value={upcomingDeliveries} colorClass="bg-blue-600" />
+      <StatCard icon={AlertTriangle} title="Projects On Hold" value={onHoldProjects} colorClass="bg-yellow-600" />
+    </div>
+  );
+};
+
+export default QuickStats;
+
+==================== components\dashboard\Sidebar.tsx ====================
+
+'use client';
+
+import Link from 'next/link';
+import Image from 'next/image';
+import { usePathname } from 'next/navigation';
+// Added LayoutGrid for our new page icon
+import { Home, Car, Camera, List, Users, Settings, X, LayoutGrid } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
+  const pathname = usePathname();
+  
+  const navItems = [
+    { name: 'Dashboard', href: '/dashboard', icon: Home },
+    // NEW: Link to the Workshop Ops Deck
+    { name: 'Ops Deck', href: '/dashboard/workshop', icon: LayoutGrid },
+    { name: 'Projects', href: '/dashboard/projects', icon: Car },
+    { name: 'Media', href: '/dashboard/media', icon: Camera },
+    { name: 'Timeline', href: '/dashboard/timeline', icon: List },
+    { name: 'Customers', href: '/dashboard/customers', icon: Users },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  ];
+
+  const SidebarContent = () => (
+    <div className="w-64 bg-gray-900 text-gray-300 flex flex-col h-full border-r border-white/10">
+      <div className="h-20 flex items-center justify-between px-4 border-b border-white/10">
+        <Link href="/dashboard" className="transition-opacity hover:opacity-80">
+          <Image
+            src="http://allamericanmuscle.co.za/wp-content/uploads/2025/01/AAM-Logo-3-Transparent.png"
+            alt="All American Muscle Logo"
+            width={150}
+            height={50}
+            priority
+          />
+        </Link>
+        <button onClick={onClose} className="md:hidden text-gray-400 hover:text-white" aria-label="Close sidebar">
+            <X className="h-6 w-6" />
+        </button>
+      </div>
+      <nav className="flex-grow px-4 py-6">
+        <ul>
+          {navItems.map(item => (
+            <li key={item.name}>
+              <Link
+                href={item.href}
+                onClick={onClose}
+                className={`flex items-center px-4 py-3 my-1 rounded-md transition-colors ${
+                  (pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/dashboard'))
+                    ? 'bg-red-600 text-white'
+                    : 'hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <item.icon className="h-5 w-5 mr-3" />
+                <span className="font-medium">{item.name}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <div className="p-4 border-t border-white/10">
+        <p className="text-xs text-gray-500">© 2025 All American Muscle</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="hidden md:flex md:flex-shrink-0">
+        <SidebarContent />
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+            <>
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="fixed inset-0 z-30 bg-black/50 md:hidden"
+                    onClick={onClose}
+                />
+                <motion.div
+                    initial={{ x: '-100%' }}
+                    animate={{ x: 0 }}
+                    exit={{ x: '-100%' }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                    className="fixed top-0 left-0 h-full z-40 md:hidden"
+                >
+                    <SidebarContent />
+                </motion.div>
+            </>
+        )}
+      </AnimatePresence>
+    </>
+  );
+};
+
+export default Sidebar;
+
+==================== components\dashboard\StatCard.tsx ====================
+
+import React from 'react';
+
+interface StatCardProps {
+  icon: React.ElementType;
+  title: string;
+  value: number | string;
+  colorClass: string;
+}
+
+const StatCard = ({ icon: Icon, title, value, colorClass }: StatCardProps) => (
+  <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft flex items-center">
+    <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${colorClass}`}>
+      <Icon className="h-6 w-6 text-white" />
+    </div>
+    <div>
+      <p className="text-sm text-gray-400">{title}</p>
+      <p className="text-2xl font-bold text-white">{value}</p>
+    </div>
+  </div>
+);
+
+export default StatCard;
+
+==================== components\dashboard\WorkshopKanban.tsx ====================
+
+'use client';
+
+import { useMemo } from 'react';
+import { Project, SubTask } from '@/lib/types';
+import { mockTechnicians } from '@/lib/mock-data';
+import Link from 'next/link';
+import { CheckCircle2, Circle } from 'lucide-react';
+
+interface KanbanTask extends SubTask {
+  projectName: string;
+  projectId: string;
+  categoryName: string;
+}
+
+interface WorkshopKanbanProps {
+  allProjects: Project[];
+}
+
+const WorkshopKanban = ({ allProjects }: WorkshopKanbanProps) => {
+
+  const columns = useMemo(() => {
+    const activeProjects = allProjects.filter(p => p.status === 'Active');
+    
+    // Flatten all subtasks from active projects into a single array
+    const allTasks: KanbanTask[] = activeProjects.flatMap(project =>
+      project.categories.flatMap(category =>
+        category.subTasks.map(task => ({
+          ...task,
+          projectName: `${project.car.year} ${project.car.make} ${project.car.model}`,
+          projectId: project.id,
+          categoryName: category.name,
+        }))
+      )
+    );
+
+    // Group tasks by technician ID
+    const tasksByTechnician = allTasks.reduce((acc, task) => {
+      const techId = task.assignedTo || 'unassigned';
+      if (!acc[techId]) {
+        acc[techId] = [];
+      }
+      acc[techId].push(task);
+      return acc;
+    }, {} as Record<string, KanbanTask[]>);
+
+    // Create the column structure
+    const techColumns = mockTechnicians.map(tech => ({
+      id: tech.id,
+      title: tech.name,
+      tasks: tasksByTechnician[tech.id] || []
+    }));
+    
+    return [
+        { id: 'unassigned', title: 'Unassigned', tasks: tasksByTechnician['unassigned'] || [] },
+        ...techColumns
+    ];
+
+  }, [allProjects]);
+
+  return (
+    <div className="flex space-x-4 overflow-x-auto pb-4">
+      {columns.map(column => (
+        <div key={column.id} className="w-80 flex-shrink-0 bg-gray-900/50 rounded-lg">
+          <div className="p-4 border-b border-white/10">
+            <h3 className="font-bold text-white">{column.title} <span className="text-sm font-normal text-gray-500">{column.tasks.length}</span></h3>
+          </div>
+          <div className="p-2 space-y-2 h-[calc(100vh-250px)] overflow-y-auto">
+            {column.tasks.length > 0 ? column.tasks.map(task => (
+              <div key={task.id} className="bg-gray-800 p-3 rounded-md border border-gray-700 shadow-soft">
+                <p className="text-sm font-medium text-gray-200 mb-2">{task.name}</p>
+                <div className="text-xs text-gray-400">
+                  <p>{task.categoryName}</p>
+                  <Link href={`/dashboard/projects/${task.projectId}`} className="text-red-500 hover:underline">
+                    {task.projectName}
+                  </Link>
+                </div>
+                <div className="mt-3 pt-2 border-t border-gray-700 flex items-center">
+                    {task.completed ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
+                    ) : (
+                        <Circle className="h-4 w-4 text-gray-600 mr-2" />
+                    )}
+                    <span className={`text-xs font-semibold ${task.completed ? 'text-green-500' : 'text-gray-500'}`}>
+                        {task.completed ? 'Completed' : 'Pending'}
+                    </span>
+                </div>
+              </div>
+            )) : (
+                <div className="flex items-center justify-center h-full p-4">
+                    <p className="text-sm text-gray-600">No tasks assigned.</p>
+                </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default WorkshopKanban;
+
+==================== components\ui\Button.tsx ====================
+
+'use client';
+
+import React, { ReactNode } from 'react';
+import { motion } from 'framer-motion';
+
+interface ButtonProps {
+  children: ReactNode;
+  variant?: 'primary' | 'secondary' | 'outline';
+  size?: 'sm' | 'md' | 'lg';
+  href?: string;
+  onClick?: () => void;
+  className?: string;
+  disabled?: boolean;
+  type?: 'submit' | 'button' | 'reset'; // Add this line
+}
+
+const Button = ({ 
+  children, 
+  variant = 'primary', 
+  size = 'md', 
+  href, 
+  onClick, 
+  className = '',
+  disabled = false,
+  type = 'button' // Add this line
+}: ButtonProps) => {
+  const baseClasses = 'inline-flex items-center justify-center font-semibold rounded-full transition-all duration-300 focus:outline-none focus-ring';
+  
+  const variants = {
+    primary: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-lg hover:shadow-xl shadow-red-900/40',
+    secondary: 'bg-gray-700 text-white hover:bg-gray-600 focus:ring-gray-500 shadow-lg hover:shadow-xl',
+    outline: 'border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white focus:ring-red-500'
+  };
+  
+  const sizes = {
+    sm: 'px-4 py-2 text-sm',
+    md: 'px-6 py-3 text-base',
+    lg: 'px-8 py-4 text-lg'
+  };
+  
+  const classes = `${baseClasses} ${variants[variant]} ${sizes[size]} ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`;
+  
+  if (href) {
+    return (
+      <motion.a
+        href={href}
+        whileHover={disabled ? {} : { scale: 1.05, y: -2 }}
+        whileTap={disabled ? {} : { scale: 0.95 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+        className={classes}
+      >
+        {children}
+      </motion.a>
+    );
+  }
+
+  return (
+    <motion.button
+      type={type} // Add this line
+      onClick={disabled ? undefined : onClick}
+      whileHover={disabled ? {} : { scale: 1.05, y: -2 }}
+      whileTap={disabled ? {} : { scale: 0.95 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+      className={classes}
+      disabled={disabled}
+    >
+      {children}
+    </motion.button>
+  );
+};
+
+export default Button;
+
+==================== components\ui\ConfirmationModal.tsx ====================
+
+'use client';
+
+import { motion, AnimatePresence } from 'framer-motion';
+import Button from './Button';
+import { AlertTriangle } from 'lucide-react';
+
+interface ConfirmationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+}
+
+const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }: ConfirmationModalProps) => {
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            className="relative bg-gray-800 border border-white/10 w-full max-w-md rounded-lg shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 flex items-start">
+                <div className="flex-shrink-0 flex h-12 w-12 items-center justify-center rounded-full bg-red-900/50 sm:mx-0 sm:h-10 sm:w-10">
+                    <AlertTriangle className="h-6 w-6 text-red-400" aria-hidden="true" />
+                </div>
+                <div className="ml-4 text-left">
+                    <h3 className="text-lg font-semibold leading-6 text-white">{title}</h3>
+                    <p className="mt-2 text-sm text-gray-400">{message}</p>
+                </div>
+            </div>
+
+            <div className="mt-2 p-4 bg-gray-900/50 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 rounded-b-lg">
+              <Button onClick={onClose} variant="secondary" size="sm" className="mt-3 w-full sm:w-auto sm:mt-0">
+                Cancel
+              </Button>
+              <Button onClick={onConfirm} variant="primary" size="sm" className="w-full sm:w-auto">
+                Confirm
+              </Button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+export default ConfirmationModal;
+
+==================== components\ui\Input.tsx ====================
+
+'use client';
+
+import React from 'react';
+
+// Forwarding ref allows this component to be used in forms that need direct access to the input element
+const Input = React.forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement>
+>(({ className, ...props }, ref) => {
+  return (
+    <input
+      ref={ref}
+      className={`w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-shadow ${className}`}
+      {...props}
+    />
+  );
+});
+
+Input.displayName = 'Input';
+
+export default Input;
+
+==================== components\ui\ProgressBar.tsx ====================
+
+interface ProgressBarProps {
+  progress: number;
+  className?: string;
+}
+
+const ProgressBar = ({ progress, className = '' }: ProgressBarProps) => {
+  const safeProgress = Math.max(0, Math.min(100, progress));
+
+  return (
+    <div className={`w-full bg-gray-700 rounded-full h-2.5 ${className}`}>
+      <div
+        className="bg-red-600 h-2.5 rounded-full transition-all duration-500 ease-out"
+        style={{ width: `${safeProgress}%` }}
+      ></div>
+    </div>
+  );
+};
+
+export default ProgressBar;
+
+==================== components\ui\ToggleSwitch.tsx ====================
+
+'use client';
+
+import { motion } from 'framer-motion';
+
+interface ToggleSwitchProps {
+  enabled: boolean;
+  setEnabled: (enabled: boolean) => void;
+}
+
+const ToggleSwitch = ({ enabled, setEnabled }: ToggleSwitchProps) => {
+  return (
+    <div
+      onClick={() => setEnabled(!enabled)}
+      className={`flex items-center w-12 h-6 rounded-full cursor-pointer transition-colors ${
+        enabled ? 'bg-red-600 justify-end' : 'bg-gray-300 justify-start'
+      }`}
+    >
+      <motion.div
+        layout
+        transition={{ type: 'spring', stiffness: 700, damping: 30 }}
+        className="w-5 h-5 bg-white rounded-full shadow-md"
+      />
+    </div>
+  );
+};
+
+export default ToggleSwitch;
+
+==================== lib\data-service.ts ====================
+
+import { mockProjects } from './mock-data';
+import { Project, Media } from './types';
+
+const STORAGE_KEY = 'AAM_PROJECTS';
+
+// This function now directly returns the static mock data.
+export const getProjects = (): Project[] => {
+  return mockProjects;
+};
+
+// This function finds a single project from the static mock data.
+export const getProjectById = (id: string): Project | undefined => {
+  const projects = getProjects();
+  return projects.find(p => p.id === id);
+};
+
+// --- ADD THIS FUNCTION BACK ---
+// This function gets the most recent media items from all projects.
+export const getRecentMedia = (limit: number = 4): Media[] => {
+    const projects = getProjects();
+    // In a real app, you'd sort by an upload date. For now, we'll just take the first few.
+    return projects
+        .flatMap(p => p.media)
+        .slice(0, limit);
+};
+
+// NOTE: The functions below are for simulating front-end interaction.
+// They do NOT permanently save data.
+export const addProject = (newProjectData: Omit<Project, 'id'>): Project => {
+  console.log("Simulating adding project:", newProjectData);
+  return {
+    ...newProjectData,
+    id: `new-project-${Date.now()}`
+  };
+};
+
+export const updateProject = (updatedProject: Project): void => {
+    console.log("Simulating updating project:", updatedProject);
+};
+
+export const deleteProject = (projectId: string): void => {
+    console.log("Simulating deleting project:", projectId);
+};
+
+==================== lib\mock-data.ts ====================
+
+import { Project, Technician } from './types';
+
+// New: A list of mock technicians for task delegation
+export const mockTechnicians: Technician[] = [
+  { id: 'tech-1', name: 'Mike L.' },
+  { id: 'tech-2', name: 'Chris P.' },
+  { id: 'tech-3', name: 'James M.' },
+];
+
+export const mockProjects: Project[] = [
+  {
+    id: 'mustang-1969-smith',
+    customerName: 'John Smith',
+    car: { make: 'Ford', model: 'Mustang Mach 1', year: 1969 },
+    status: 'Active',
+    holdReason: '',
+    createdAt: '2025-08-05',
+    categories: [
+      { id: 'bp', name: 'Body & Paint', weight: 25, subTasks: [
+        { id: 'bp1', name: 'Media Blasting', completed: true, assignedTo: 'tech-1' },
+        { id: 'bp2', name: 'Rust Repair & Panel Replacement', completed: true, assignedTo: 'tech-1' },
+        { id: 'bp3', name: 'Body Filler & Sanding', completed: true, assignedTo: 'tech-2' },
+        { id: 'bp4', name: 'Primer Application', completed: false, assignedTo: 'tech-2' },
+        { id: 'bp5', name: 'Final Paint (Wimbledon White)', completed: false },
+      ]},
+      { id: 'cs', name: 'Chassis & Suspension', weight: 20, subTasks: [
+        { id: 'cs1', name: 'Frame Inspection & Repair', completed: true, assignedTo: 'tech-3' },
+        { id: 'cs2', name: 'Front Suspension Rebuild', completed: true, assignedTo: 'tech-3' },
+        { id: 'cs3', name: 'Rear Leaf Spring Replacement', completed: false },
+      ]},
+      { id: 'en', name: 'Engine & Drivetrain', weight: 25, subTasks: [
+        { id: 'en1', name: 'Engine Disassembly', completed: true, assignedTo: 'tech-1' },
+        { id: 'en2', name: 'Block Machining', completed: true, assignedTo: 'tech-1' },
+        { id: 'en3', name: 'Engine Assembly (351 Windsor)', completed: false },
+      ]},
+    ],
+    timeline: [
+      { id: 't1', date: '2025-08-26', update: 'Engine block returned from machine shop.', category: 'Engine & Drivetrain' },
+      { id: 't2', date: '2025-08-18', update: 'Body filler work complete, prepping for primer.', category: 'Body & Paint' },
+    ],
+    media: [
+      { id: 'm1', url: 'https://images.unsplash.com/photo-1603792025623-1a4a4f895a92?q=80&w=2070&auto=format&fit=crop', caption: 'Initial state of the vehicle.', category: 'Body & Paint' },
+      { id: 'm2', url: 'https://images.unsplash.com/photo-1599401133589-a2e2f3a62f84?q=80&w=2070&auto=format&fit=crop', caption: '351 Windsor engine block.', category: 'Engine & Drivetrain' },
+    ],
+    internalNotes: [
+        { id: 'note-1', author: 'Boss', note: 'Customer is very particular about the paint finish. Ensure extra prep time is scheduled.', createdAt: '2025-08-05T10:00:00Z' }
+    ],
+    messages: [
+      { id: 'msg-1', author: 'Client', text: 'Hey, just checking in. How is the bodywork looking?', visibleTo: 'All', createdAt: '2025-08-20T14:00:00Z' },
+      { id: 'msg-2', author: 'Manager', text: 'Hi John, it\'s looking great. We just finished the final sanding. I\'ll upload some photos to the journal this afternoon.', visibleTo: 'All', createdAt: '2025-08-20T15:30:00Z' },
+      // NEW BOSS-ONLY MESSAGE FOR OUR FEED
+      { id: 'msg-3', author: 'Client', text: 'Can we discuss the budget privately? I have some concerns.', visibleTo: 'BossOnly', createdAt: '2025-08-28T09:00:00Z' },
+    ],
+    financials: {
+      totalQuoted: 75000,
+      totalPaid: 37500,
+      invoices: [
+        { id: 'inv-1', description: 'Project Deposit (50%)', amount: 37500, status: 'Paid', dueDate: '2025-08-05' },
+        { id: 'inv-2', description: 'Final Payment', amount: 37500, status: 'Pending', dueDate: '2025-10-30' },
+      ]
+    }
+  },
+  {
+    id: 'charger-1971-doe',
+    customerName: 'Richard Doe',
+    car: { make: 'Dodge', model: 'Charger R/T', year: 1971 },
+    status: 'On Hold',
+    holdReason: 'Awaiting Parts',
+    createdAt: '2025-07-15',
+    categories: [
+     { id: 'ps', name: 'Parts Sourcing', weight: 100, subTasks: [
+        { id: 'ps1', name: 'Source correct vinyl top', completed: false },
+        { id: 'ps2', name: 'Locate OEM rallye wheels', completed: true },
+      ]},
+    ],
+    timeline: [
+      { id: 't4', date: '2025-08-25', update: 'Project on hold. Reason: Awaiting Parts - Sourcing correct vinyl top.', category: 'Project Status' }
+    ],
+    media: [],
+    internalNotes: [],
+    messages: [],
+    financials: {
+      totalQuoted: 15000,
+      totalPaid: 0,
+      invoices: [
+        { id: 'inv-3', description: 'Parts Deposit', amount: 7500, status: 'Pending', dueDate: '2025-07-20' },
+      ]
+    }
+  },
+  {
+    id: 'camaro-1969-jones',
+    customerName: 'Jane Jones',
+    car: { make: 'Chevrolet', model: 'Camaro SS', year: 1969 },
+    status: 'On Hold',
+    holdReason: 'Awaiting Payment',
+    createdAt: '2025-08-26',
+    categories: [
+      { id: 'en', name: 'Engine Service', weight: 100, subTasks: [
+        { id: 'en1', name: '396 V8 Teardown', completed: true },
+        { id: 'en2', name: 'Replace Air Filter', completed: true },
+        { id: 'en3', name: 'Oil & Filter Change', completed: false },
+      ]},
+    ],
+    timeline: [
+      { id: 't3', date: '2025-08-27', update: 'Project placed on hold. Reason: Awaiting Payment for engine service invoice.', category: 'Project Status' }
+    ],
+    media: [
+      { id: 'm3', url: 'https://images.unsplash.com/photo-1552636242-18319f6a5e23?q=80&w=2070&auto=format&fit=crop', caption: 'Camaro arriving at the workshop.', category: 'Engine Service' }
+    ],
+    internalNotes: [],
+    messages: [],
+    financials: {
+      totalQuoted: 2500,
+      totalPaid: 0,
+      invoices: [
+        { id: 'inv-4', description: 'Major Engine Service', amount: 2500, status: 'Overdue', dueDate: '2025-08-20' },
+      ]
+    }
+  },
+  {
+    id: 'cuda-1970-williams',
+    customerName: 'Susan Williams',
+    car: { make: 'Plymouth', model: 'Barracuda', year: 1970 },
+    status: 'Completed',
+    holdReason: '',
+    createdAt: '2025-04-10',
+    categories: [
+     { id: 'fa', name: 'Final Assembly', weight: 100, subTasks: [
+        { id: 'fa1', name: 'Final Polish & Detailing', completed: true },
+        { id: 'fa2', name: 'Customer Delivery', completed: true },
+      ]},
+    ],
+    timeline: [
+      { id: 't5', date: '2025-08-20', update: 'Project completed and delivered to customer.', category: 'Final Assembly' }
+    ],
+    media: [
+        { id: 'm4', url: 'https://images.unsplash.com/photo-1621287993213-e27145b23b42?q=80&w=2070&auto=format&fit=crop', caption: 'The finished Barracuda!', category: 'Final Assembly' }
+    ],
+    internalNotes: [],
+    messages: [],
+    financials: {
+      totalQuoted: 95000,
+      totalPaid: 95000,
+      invoices: [
+        { id: 'inv-5', description: 'Project Deposit', amount: 47500, status: 'Paid', dueDate: '2025-04-10' },
+        { id: 'inv-6', description: 'Final Payment', amount: 47500, status: 'Paid', dueDate: '2025-08-15' },
+      ]
+    }
+  },
+];
+
+==================== lib\project-templates.ts ====================
+
+import { Category } from './types';
+
+export const fullRestorationTemplate: Category[] = [
+  {
+    id: 'body-paint', name: 'Body & Paint', weight: 25, subTasks: [
+      { id: 'bp1', name: 'Media Blasting', completed: false },
+      { id: 'bp2', name: 'Rust Repair & Panel Replacement', completed: false },
+      { id: 'bp3', name: 'Body Filler & Sanding', completed: false },
+      { id: 'bp4', name: 'Primer Application', completed: false },
+      { id: 'bp5', name: 'Final Paint', completed: false },
+      { id: 'bp6', name: 'Clear Coat & Polishing', completed: false },
+    ]
+  },
+  {
+    id: 'chassis-suspension', name: 'Chassis & Suspension', weight: 20, subTasks: [
+      { id: 'cs1', name: 'Frame Inspection & Repair', completed: false },
+      { id: 'cs2', name: 'Front Suspension Rebuild', completed: false },
+      { id: 'cs3', name: 'Rear Suspension Rebuild', completed: false },
+      { id: 'cs4', name: 'Brake System Installation', completed: false },
+      { id: 'cs5', name: 'Steering Box & Linkage', completed: false },
+    ]
+  },
+  {
+    id: 'engine', name: 'Engine & Drivetrain', weight: 25, subTasks: [
+      { id: 'en1', name: 'Engine Disassembly & Inspection', completed: false },
+      { id: 'en2', name: 'Block Machining', completed: false },
+      { id: 'en3', name: 'Engine Assembly', completed: false },
+      { id: 'en4', name: 'Transmission Rebuild', completed: false },
+      { id: 'en5', name: 'Driveshaft Balancing & Installation', completed: false },
+      { id: 'en6', name: 'Engine & Transmission Installation', completed: false },
+    ]
+  },
+  {
+    id: 'interior', name: 'Interior', weight: 15, subTasks: [
+      { id: 'in1', name: 'Floor Pan Sound Deadening', completed: false },
+      { id: 'in2', name: 'Carpet Installation', completed: false },
+      { id: 'in3', name: 'Dashboard & Gauge Restoration', completed: false },
+      { id: 'in4', name: 'Seat Upholstery', completed: false },
+      { id: 'in5', name: 'Headliner Installation', completed: false },
+    ]
+  },
+  {
+    id: 'electrical', name: 'Electrical & Wiring', weight: 15, subTasks: [
+      { id: 'el1', name: 'Design & Layout New Wiring Harness', completed: false },
+      { id: 'el2', name: 'Main Harness Installation', completed: false },
+      { id: 'el3', name: 'Lighting & Signals', completed: false },
+      { id: 'el4', name: 'Ignition System', completed: false },
+    ]
+  },
+];
+
+export const majorServiceTemplate: Category[] = [
+    {
+        id: 'engine', name: 'Engine Service', weight: 60, subTasks: [
+            { id: 'ms1', name: 'Oil & Filter Change', completed: false },
+            { id: 'ms2', name: 'Spark Plug Replacement', completed: false },
+            { id: 'ms3', name: 'Air Filter Replacement', completed: false },
+            { id: 'ms4', name: 'Coolant Flush', completed: false },
+            { id: 'ms5', name: 'Carburetor Tune-up', completed: false },
+        ]
+    },
+    {
+        id: 'chassis', name: 'Chassis Check', weight: 40, subTasks: [
+            { id: 'ms6', name: 'Brake Inspection', completed: false },
+            { id: 'ms7', name: 'Tire Rotation & Pressure Check', completed: false },
+            { id: 'ms8', name: 'Suspension Check', completed: false },
+        ]
+    }
+];
+
+==================== lib\types.ts ====================
+
+export interface Technician {
+  id: string;
+  name: string;
+}
+
+export interface InternalNote {
+  id: string;
+  author: string; // For now, just a name. Later could be a Technician ID.
+  note: string;
+  createdAt: string;
+}
+
+export interface Message {
+  id: string;
+  author: 'Client' | 'Boss' | 'Manager';
+  text: string;
+  visibleTo: 'All' | 'BossOnly' | 'StaffOnly';
+  createdAt: string;
+}
+
+export interface Invoice {
+  id: string;
+  amount: number;
+  status: 'Pending' | 'Paid' | 'Overdue';
+  dueDate: string;
+  description: string;
+}
+
+export interface SubTask {
+  id: string;
+  name: string;
+  completed: boolean;
+  assignedTo?: Technician['id']; // Optional field for technician ID
+  // NEW: Flag for tasks that require client approval
+  requiresClientApproval?: boolean;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  weight: number;
+  subTasks: SubTask[];
+}
+
+export interface TimelineUpdate {
+  id: string;
+  date: string;
+  update: string;
+  category: string;
+}
+
+export interface Media {
+  id: string;
+  url: string;
+  caption: string;
+  category: string;
+}
+
+export interface Project {
+  id:string;
+  customerName: string;
+  car: {
+    make: string;
+    model: string;
+    year: number;
+  };
+  status: 'Active' | 'Completed' | 'On Hold';
+  holdReason?: 'Awaiting Parts' | 'Awaiting Payment' | 'Awaiting Client Decision' | '';
+  createdAt: string;
+  categories: Category[];
+  timeline: TimelineUpdate[];
+  media: Media[];
+  internalNotes: InternalNote[];
+  messages: Message[];
+  financials: {
+    invoices: Invoice[];
+    totalQuoted: number;
+    totalPaid: number;
+  };
+}
+
+==================== lib\utils.ts ====================
+
+import { Project } from './types';
+
+// This function is now centralized and can be imported anywhere.
+export const calculateOverallProgress = (project: Project | null): number => {
+  if (!project || !project.categories || project.categories.length === 0) return 0;
+
+  const totalProgress = project.categories.reduce((acc, category) => {
+    const completedTasks = category.subTasks.filter(t => t.completed).length;
+    const categoryProgress = category.subTasks.length > 0 ? (completedTasks / category.subTasks.length) : 0;
+    return acc + (categoryProgress * category.weight);
+  }, 0);
+
+  const totalWeight = project.categories.reduce((acc, category) => acc + category.weight, 0);
+  return totalWeight > 0 ? totalProgress / totalWeight * 100 : 0;
+};

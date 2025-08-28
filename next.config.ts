@@ -6,15 +6,15 @@ const nextConfig: NextConfig = {
       {
         protocol: 'http',
         hostname: 'allamericanmuscle.co.za',
-        port: '',
-        pathname: '/wp-content/uploads/**',
       },
       {
         protocol: 'https',
-        hostname: 'placehold.co',
-        port: '',
-        pathname: '/**',
-      }
+        hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'placehold.co', // Re-adding this to fix the error
+      },
     ],
   },
 };

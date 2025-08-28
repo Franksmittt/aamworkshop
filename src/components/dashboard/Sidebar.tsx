@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Home, Car, Camera, List, Users, Settings, X } from 'lucide-react';
+// Added LayoutGrid for our new page icon
+import { Home, Car, Camera, List, Users, Settings, X, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SidebarProps {
@@ -13,14 +14,16 @@ interface SidebarProps {
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const pathname = usePathname();
-
+  
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
+    // NEW: Link to the Workshop Ops Deck
+    { name: 'Ops Deck', href: '/dashboard/workshop', icon: LayoutGrid },
     { name: 'Projects', href: '/dashboard/projects', icon: Car },
-    { name: 'Media', href: '/media', icon: Camera },
-    { name: 'Timeline', href: '/timeline', icon: List }, // Corrected from 'Timeline' to 'List'
-    { name: 'Customers', href: '/customers', icon: Users },
-    { name: 'Settings', href: '/settings', icon: Settings },
+    { name: 'Media', href: '/dashboard/media', icon: Camera },
+    { name: 'Timeline', href: '/dashboard/timeline', icon: List },
+    { name: 'Customers', href: '/dashboard/customers', icon: Users },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ];
 
   const SidebarContent = () => (
@@ -45,7 +48,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             <li key={item.name}>
               <Link
                 href={item.href}
-                onClick={onClose} // Close sidebar on link click for mobile
+                onClick={onClose}
                 className={`flex items-center px-4 py-3 my-1 rounded-md transition-colors ${
                   (pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/dashboard'))
                     ? 'bg-red-600 text-white'
@@ -67,12 +70,10 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
   return (
     <>
-      {/* Desktop Sidebar (Static) */}
       <div className="hidden md:flex md:flex-shrink-0">
         <SidebarContent />
       </div>
 
-      {/* Mobile Sidebar (Animated) */}
       <AnimatePresence>
         {isOpen && (
             <>

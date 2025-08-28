@@ -34,31 +34,32 @@ export default function MediaPage() {
   return (
     <>
       <div className="mb-8">
+        {/* Text colors reverted for dark background */}
         <h1 className="text-3xl font-bold text-white">Global Media Library</h1>
         <p className="text-gray-400">View and filter all photos from all projects.</p>
       </div>
 
       {/* Filter Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-8 p-4 bg-white rounded-lg shadow-soft">
+      <div className="flex flex-col sm:flex-row gap-4 mb-8 p-4 bg-gray-800 border border-white/10 rounded-lg shadow-soft">
         <div>
-          <label htmlFor="project-filter" className="block text-sm font-medium text-gray-700">Filter by Project</label>
+          <label htmlFor="project-filter" className="block text-sm font-medium text-gray-300">Filter by Project</label>
           <select
             id="project-filter"
             value={selectedProject}
             onChange={(e) => setSelectedProject(e.target.value)}
-            className="mt-1 block w-full sm:w-64 rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500"
+            className="mt-1 block w-full sm:w-64 rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-red-500 focus:ring-red-500"
           >
             <option>All Projects</option>
             {mockProjects.map(p => <option key={p.id} value={p.id}>{`${p.car.year} ${p.car.make} ${p.car.model}`}</option>)}
           </select>
         </div>
         <div>
-          <label htmlFor="category-filter" className="block text-sm font-medium text-gray-700">Filter by Category</label>
+          <label htmlFor="category-filter" className="block text-sm font-medium text-gray-300">Filter by Category</label>
           <select
             id="category-filter"
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="mt-1 block w-full sm:w-64 rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500"
+            className="mt-1 block w-full sm:w-64 rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-red-500 focus:ring-red-500"
           >
             {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -91,7 +92,7 @@ export default function MediaPage() {
         ))}
       </div>
        {filteredMedia.length === 0 && (
-        <div className="text-center py-16 bg-white rounded-lg">
+        <div className="text-center py-16 bg-gray-800 rounded-lg">
           <p className="text-gray-500">No photos match the selected filters.</p>
         </div>
       )}

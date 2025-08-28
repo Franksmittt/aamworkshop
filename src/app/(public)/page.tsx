@@ -18,9 +18,8 @@ export default function Home() {
     setError('');
 
     // --- MOCK AUTHENTICATION ---
-    // In a real app, you would send this to a server to verify.
-    // For now, we'll check against our mock data project ID and a simple password.
-    if (projectCode.trim() === 'mustang-69-smith' && password === 'smith') {
+    // This now correctly redirects to the new public-facing project page.
+    if (projectCode.trim() === 'mustang-1969-smith' && password === 'smith') {
       router.push(`/projects/${projectCode.trim()}`);
     } else {
       setError('Invalid project code or password.');
@@ -31,10 +30,12 @@ export default function Home() {
     <div className="relative min-h-screen flex items-center justify-center p-4">
       {/* Background Image */}
       <Image
-        src="https://placehold.co/1920x1080/111827/000000?text=+" // Placeholder, replace with a real image
+        src="https://images.unsplash.com/photo-1617546889104-62f321b2383c?q=80&w=2070&auto=format&fit=crop"
         alt="Classic muscle car in a workshop"
         fill
         className="object-cover z-0"
+        unoptimized
+        priority
       />
       <div className="absolute inset-0 bg-black/70 z-10"></div>
 

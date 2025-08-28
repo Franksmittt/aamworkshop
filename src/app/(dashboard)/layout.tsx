@@ -12,11 +12,12 @@ export default function DashboardLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-background text-gray-800">
+    // Reverted to the dark theme to match the root layout and component styles.
+    <div className="flex h-screen bg-background text-foreground">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <DashboardHeader onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto bg-grid-pattern">
           <div className="p-6 md:p-8">
             {children}
           </div>

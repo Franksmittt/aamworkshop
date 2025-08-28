@@ -1,71 +1,81 @@
 import { mockProjects } from './mock-data';
-import { Project } from './types';
+import { Project, Media } from './types';
 
 const STORAGE_KEY = 'AAM_PROJECTS';
 
-// This function gets all projects: the initial ones plus any you've added.
-export const getProjects = (): Project[] => {
+// Helper to safely get projects from localStorage, seeding it if it's empty.
+const getProjectsFromStorage = (): Project[] => {
   if (typeof window === 'undefined') {
-    return mockProjects;
+    return mockProjects; // Return static data for server-side rendering
   }
-  
-  const savedProjectsJson = sessionStorage.getItem(STORAGE_KEY);
-  
-  if (savedProjectsJson) {
-    return JSON.parse(savedProjectsJson);
-  } else {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(mockProjects));
+  try {
+    const storedProjects = localStorage.getItem(STORAGE_KEY);
+    if (storedProjects) {
+      return JSON.parse(storedProjects);
+    } else {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mockProjects));
+      return mockProjects;
+    }
+  } catch (error) {
+    console.error("Could not access localStorage. Returning mock data.", error);
     return mockProjects;
   }
 };
 
-// This function finds a single project by its ID.
+// Helper to save the current list of projects to localStorage.
+const saveProjectsToStorage = (projects: Project[]) => {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+    } catch (error) {
+      console.error("Could not save projects to localStorage.", error);
+    }
+  }
+};
+
+// --- CORE API ---
+
+export const getProjects = (): Project[] => {
+  return getProjectsFromStorage();
+};
+
 export const getProjectById = (id: string): Project | undefined => {
-  const projects = getProjects();
+  const projects = getProjectsFromStorage();
   return projects.find(p => p.id === id);
 };
 
-// This function adds a new project to the list in session storage.
 export const addProject = (newProjectData: Omit<Project, 'id'>): Project => {
-  const projects = getProjects();
-  
+  const projects = getProjectsFromStorage();
   const newProject: Project = {
     ...newProjectData,
-    id: `${newProjectData.car.make.toLowerCase().replace(/\s/g, '-')}-${newProjectData.car.model.toLowerCase().replace(/\s/g, '-')}-${Date.now()}`
+    id: `${newProjectData.car.make.toLowerCase().replace(/\s/g, '-')}-${newProjectData.car.year}-${Date.now()}`
   };
-
-  const updatedProjects = [newProject, ...projects];
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProjects));
-  
+  const updatedProjects = [...projects, newProject];
+  saveProjectsToStorage(updatedProjects);
+  console.log("Project added and saved to localStorage:", newProject);
   return newProject;
 };
 
-// This function updates an existing project in session storage.
-export const updateProject = (updatedProject: Project): void => {
-    if (typeof window === 'undefined') {
-        return;
-    }
-    const projects = getProjects();
-    const projectIndex = projects.findIndex(p => p.id === updatedProject.id);
-
-    if (projectIndex !== -1) {
-        projects[projectIndex] = updatedProject;
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
-    }
+// This function now needs to actually update the data in storage.
+export const updateProject = (projectId: string, updatedData: Partial<Project>): Project | undefined => {
+  const projects = getProjectsFromStorage();
+  const projectIndex = projects.findIndex(p => p.id === projectId);
+  if (projectIndex !== -1) {
+    projects[projectIndex] = { ...projects[projectIndex], ...updatedData };
+    saveProjectsToStorage(projects);
+    return projects[projectIndex];
+  }
+  console.error("Failed to find project to update:", projectId);
 };
 
-// This function deletes a project from session storage.
 export const deleteProject = (projectId: string): void => {
-    if (typeof window === 'undefined') {
-        return;
-    }
-    const projects = getProjects();
-    const updatedProjects = projects.filter(p => p.id !== projectId);
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProjects));
+  const projects = getProjectsFromStorage();
+  const updatedProjects = projects.filter(p => p.id !== projectId);
+  saveProjectsToStorage(updatedProjects);
+  console.log("Project deleted:", projectId);
 };
 
-// This function gets the most recent media items from all projects.
-export const getRecentMedia = (limit: number = 4) => {
+export const getRecentMedia = (limit: number = 4): Media[] => {
     const projects = getProjects();
     // In a real app, you'd sort by an upload date. For now, we'll just take the first few.
     return projects
