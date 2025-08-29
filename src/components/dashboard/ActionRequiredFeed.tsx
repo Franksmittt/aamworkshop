@@ -52,6 +52,7 @@ const generateActionItems = (projects: Project[]) => {
         projectId: 'mustang-1969-smith',
         icon: Clock,
         color: 'red',
+        // This hash will now scroll the user to the progress section
         href: `/dashboard/projects/mustang-1969-smith#progress`
     });
 
