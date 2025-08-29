@@ -1,47 +1,94 @@
+// [path]: lib/data-service.ts
+
 import { mockProjects } from './mock-data';
-import { Project, Media } from './types';
+import { Project, SubTask, Category } from './types';
+import { fullRestorationTemplate, majorServiceTemplate } from './project-templates';
 
-const STORAGE_KEY = 'AAM_PROJECTS';
+const PROJECTS_STORAGE_KEY = 'AAM_PROJECTS';
+const TEMPLATES_STORAGE_KEY = 'AAM_TEMPLATES';
 
-// Helper to safely get projects from localStorage, seeding it if it's empty.
+
+// =======================================================================
+// PROJECT DATA FUNCTIONS
+// =======================================================================
+
 const getProjectsFromStorage = (): Project[] => {
-  if (typeof window === 'undefined') {
-    return mockProjects; // Return static data for server-side rendering
-  }
+  if (typeof window === 'undefined') return mockProjects;
   try {
-    const storedProjects = localStorage.getItem(STORAGE_KEY);
-    if (storedProjects) {
-      return JSON.parse(storedProjects);
-    } else {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(mockProjects));
+    const storedProjects = localStorage.getItem(PROJECTS_STORAGE_KEY);
+    if (!storedProjects) {
+      localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(mockProjects));
       return mockProjects;
     }
+    return JSON.parse(storedProjects);
   } catch (error) {
-    console.error("Could not access localStorage. Returning mock data.", error);
+    console.error("Could not access localStorage for projects.", error);
     return mockProjects;
   }
 };
 
-// Helper to save the current list of projects to localStorage.
 const saveProjectsToStorage = (projects: Project[]) => {
   if (typeof window !== 'undefined') {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+      localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
     } catch (error) {
       console.error("Could not save projects to localStorage.", error);
     }
   }
 };
 
-// --- CORE API ---
+// =======================================================================
+// TEMPLATE DATA FUNCTIONS
+// =======================================================================
 
-export const getProjects = (): Project[] => {
-  return getProjectsFromStorage();
+export const getTemplates = (): Category[][] => {
+  if (typeof window === 'undefined') return [fullRestorationTemplate, majorServiceTemplate];
+  try {
+    const storedTemplates = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+    if (!storedTemplates) {
+      const defaultTemplates = [fullRestorationTemplate, majorServiceTemplate];
+      // A simple way to give templates a name for the UI
+      defaultTemplates[0][0].name = "Full Restoration - Body & Paint";
+      defaultTemplates[1][0].name = "Major Service - Engine Service";
+      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(defaultTemplates));
+      return defaultTemplates;
+    }
+    return JSON.parse(storedTemplates);
+  } catch (error) {
+    console.error("Could not access localStorage for templates.", error);
+    return [fullRestorationTemplate, majorServiceTemplate];
+  }
 };
+
+export const saveTemplates = (templates: Category[][]) => {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
+    } catch (error) {
+      console.error("Could not save templates to localStorage.", error);
+    }
+  }
+};
+
+// =======================================================================
+// EXPORTED API
+// =======================================================================
+
+export const getProjects = (): Project[] => getProjectsFromStorage();
 
 export const getProjectById = (id: string): Project | undefined => {
   const projects = getProjectsFromStorage();
   return projects.find(p => p.id === id);
+};
+
+export const updateProject = (projectId: string, updatedData: Partial<Project>): Project | undefined => {
+  const projects = getProjectsFromStorage();
+  const projectIndex = projects.findIndex(p => p.id === projectId);
+  if (projectIndex !== -1) {
+    projects[projectIndex] = { ...projects[projectIndex], ...updatedData };
+    saveProjectsToStorage(projects);
+    return projects[projectIndex];
+  }
 };
 
 export const addProject = (newProjectData: Omit<Project, 'id'>): Project => {
@@ -52,33 +99,71 @@ export const addProject = (newProjectData: Omit<Project, 'id'>): Project => {
   };
   const updatedProjects = [...projects, newProject];
   saveProjectsToStorage(updatedProjects);
-  console.log("Project added and saved to localStorage:", newProject);
   return newProject;
 };
 
-// This function now needs to actually update the data in storage.
-export const updateProject = (projectId: string, updatedData: Partial<Project>): Project | undefined => {
-  const projects = getProjectsFromStorage();
-  const projectIndex = projects.findIndex(p => p.id === projectId);
-  if (projectIndex !== -1) {
-    projects[projectIndex] = { ...projects[projectIndex], ...updatedData };
-    saveProjectsToStorage(projects);
-    return projects[projectIndex];
-  }
-  console.error("Failed to find project to update:", projectId);
-};
-
+// --- CORRECTED: Added the missing deleteProject function back ---
 export const deleteProject = (projectId: string): void => {
   const projects = getProjectsFromStorage();
   const updatedProjects = projects.filter(p => p.id !== projectId);
   saveProjectsToStorage(updatedProjects);
-  console.log("Project deleted:", projectId);
 };
 
-export const getRecentMedia = (limit: number = 4): Media[] => {
-    const projects = getProjects();
-    // In a real app, you'd sort by an upload date. For now, we'll just take the first few.
-    return projects
-        .flatMap(p => p.media)
-        .slice(0, limit);
+// --- CORRECTED: Added the missing logTaskTime function back ---
+export const logTaskTime = (projectId: string, categoryId: string, taskId: string, hoursToAdd: number): Project | undefined => {
+    const projects = getProjectsFromStorage();
+    const projectIndex = projects.findIndex(p => p.id === projectId);
+    if (projectIndex === -1) return undefined;
+    const category = projects[projectIndex].categories.find(c => c.id === categoryId);
+    const task = category?.subTasks.find(t => t.id === taskId);
+    if (task) {
+        task.actualHours = (task.actualHours || 0) + hoursToAdd;
+        saveProjectsToStorage(projects);
+        return projects[projectIndex];
+    }
+    return undefined;
+};
+
+export const updateTaskStatus = (projectId: string, categoryId: string, taskId: string, newStatus: SubTask['status']): Project | undefined => {
+    const projects = getProjectsFromStorage();
+    const projectIndex = projects.findIndex(p => p.id === projectId);
+    if (projectIndex === -1) return undefined;
+    const category = projects[projectIndex].categories.find(c => c.id === categoryId);
+    const task = category?.subTasks.find(t => t.id === taskId);
+    if (task) {
+        task.status = newStatus;
+        saveProjectsToStorage(projects);
+        return projects[projectIndex];
+    }
+    return undefined;
+};
+
+export const declineTaskApproval = (projectId: string, categoryId: string, taskId: string): Project | undefined => {
+    const projects = getProjectsFromStorage();
+    const projectIndex = projects.findIndex(p => p.id === projectId);
+    if (projectIndex === -1) return undefined;
+    const category = projects[projectIndex].categories.find(c => c.id === categoryId);
+    const task = category?.subTasks.find(t => t.id === taskId);
+    if (task) {
+        task.status = 'Pending';
+        task.requiresClientApproval = false;
+        saveProjectsToStorage(projects);
+        return projects[projectIndex];
+    }
+    return undefined;
+};
+
+export const updateCategoryQaStatus = (projectId: string, categoryId: string, qaPassed: boolean): Project | undefined => {
+    const projects = getProjectsFromStorage();
+    const projectIndex = projects.findIndex(p => p.id === projectId);
+    if (projectIndex === -1) return undefined;
+    const category = projects[projectIndex].categories.find(c => c.id === categoryId);
+    if (category) {
+        if (!qaPassed) {
+            category.subTasks.forEach(task => { task.status = 'Pending'; });
+        }
+        saveProjectsToStorage(projects);
+        return projects[projectIndex];
+    }
+    return undefined;
 };

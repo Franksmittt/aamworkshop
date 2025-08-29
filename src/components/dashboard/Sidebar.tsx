@@ -1,11 +1,13 @@
+// [path]: components/dashboard/Sidebar.tsx
+
 'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-// Added LayoutGrid for our new page icon
-import { Home, Car, Camera, List, Users, Settings, X, LayoutGrid } from 'lucide-react';
+import { Home, Car, Camera, List, Users, Settings, X, LayoutGrid, LogOut, Wrench, DollarSign, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/app/AuthContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -14,17 +16,23 @@ interface SidebarProps {
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const pathname = usePathname();
-  
-  const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    // NEW: Link to the Workshop Ops Deck
-    { name: 'Ops Deck', href: '/dashboard/workshop', icon: LayoutGrid },
-    { name: 'Projects', href: '/dashboard/projects', icon: Car },
-    { name: 'Media', href: '/dashboard/media', icon: Camera },
-    { name: 'Timeline', href: '/dashboard/timeline', icon: List },
-    { name: 'Customers', href: '/dashboard/customers', icon: Users },
-    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  const { user, logout } = useAuth();
+
+  const allNavItems = [
+    { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['Boss', 'Manager'] },
+    { name: 'My Tasks', href: '/dashboard/my-tasks', icon: LayoutGrid, roles: ['Technician'] },
+    { name: 'Financials', href: '/dashboard/financials', icon: DollarSign, roles: ['Boss'] },
+    { name: 'Projects', href: '/dashboard/projects', icon: Car, roles: ['Boss', 'Manager'] },
+    { name: 'Schedule', href: '/dashboard/schedule', icon: Calendar, roles: ['Boss', 'Manager'] },
+    { name: 'Ops Deck', href: '/dashboard/workshop', icon: LayoutGrid, roles: ['Boss', 'Manager'] },
+    { name: 'Parts Hub', href: '/dashboard/parts', icon: Wrench, roles: ['Boss', 'Manager'] },
+    { name: 'Media', href: '/dashboard/media', icon: Camera, roles: ['Boss', 'Manager'] },
+    { name: 'Timeline', href: '/dashboard/timeline', icon: List, roles: ['Boss', 'Manager'] },
+    { name: 'Customers', href: '/dashboard/customers', icon: Users, roles: ['Boss', 'Manager'] },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings, roles: ['Boss'] },
   ];
+
+  const navItems = allNavItems.filter(item => user?.role && item.roles.includes(user.role));
 
   const SidebarContent = () => (
     <div className="w-64 bg-gray-900 text-gray-300 flex flex-col h-full border-r border-white/10">
@@ -63,7 +71,13 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         </ul>
       </nav>
       <div className="p-4 border-t border-white/10">
-        <p className="text-xs text-gray-500">© 2025 All American Muscle</p>
+        <button
+            onClick={logout}
+            className="flex w-full items-center px-4 py-3 my-1 rounded-md text-gray-400 hover:bg-red-900/50 hover:text-red-300 transition-colors"
+        >
+            <LogOut className="h-5 w-5 mr-3" />
+            <span className="font-medium">Logout</span>
+        </button>
       </div>
     </div>
   );
@@ -73,25 +87,11 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       <div className="hidden md:flex md:flex-shrink-0">
         <SidebarContent />
       </div>
-
       <AnimatePresence>
         {isOpen && (
             <>
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="fixed inset-0 z-30 bg-black/50 md:hidden"
-                    onClick={onClose}
-                />
-                <motion.div
-                    initial={{ x: '-100%' }}
-                    animate={{ x: 0 }}
-                    exit={{ x: '-100%' }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                    className="fixed top-0 left-0 h-full z-40 md:hidden"
-                >
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={onClose} />
+                <motion.div initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} className="fixed top-0 left-0 h-full z-40 md:hidden">
                     <SidebarContent />
                 </motion.div>
             </>

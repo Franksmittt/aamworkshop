@@ -5,17 +5,27 @@
 │   │   ├── dashboard
 │   │   │   ├── customers
 │   │   │   │   └── page.tsx
+│   │   │   ├── financials
+│   │   │   │   └── page.tsx
 │   │   │   ├── media
 │   │   │   │   └── page.tsx
+│   │   │   ├── my-tasks
+│   │   │   │   └── page.tsx
 │   │   │   ├── page.tsx
+│   │   │   ├── parts
+│   │   │   │   └── page.tsx
 │   │   │   ├── projects
 │   │   │   │   ├── [projectId]
 │   │   │   │   │   └── page.tsx
 │   │   │   │   ├── new
 │   │   │   │   │   └── page.tsx
 │   │   │   │   └── page.tsx
-│   │   │   ├── settings
+│   │   │   ├── schedule
 │   │   │   │   └── page.tsx
+│   │   │   ├── settings
+│   │   │   │   ├── page.tsx
+│   │   │   │   └── templates
+│   │   │   │       └── page.tsx
 │   │   │   ├── timeline
 │   │   │   │   └── page.tsx
 │   │   │   └── workshop
@@ -26,13 +36,16 @@
 │   │   ├── page.tsx
 │   │   └── projects
 │   │       └── [projectId]
-│   │           ├── layout.tsx
+│   │           ├── build-book
+│   │           │   └── page.tsx
 │   │           └── page.tsx
+│   ├── AuthContext.tsx
 │   ├── favicon.ico
 │   ├── globals.css
 │   ├── layout.tsx
 │   └── not-found.tsx
 ├── components
+│   ├── ApprovalCenter.tsx
 │   ├── DecisionsNeededPanel.tsx
 │   ├── Footer.tsx
 │   ├── Header.tsx
@@ -47,16 +60,20 @@
 │   │   ├── AlertsPanel.tsx
 │   │   ├── DashboardHeader.tsx
 │   │   ├── EditProjectModal.tsx
+│   │   ├── ExceptionTiles.tsx
 │   │   ├── FinancialsPanel.tsx
 │   │   ├── InteractiveProgressCategory.tsx
-│   │   ├── InternalNotes.tsx
+│   │   ├── JobCardModal.tsx
 │   │   ├── MessagingCenter.tsx
+│   │   ├── PartsBoard.tsx
 │   │   ├── PhotoHighlights.tsx
 │   │   ├── ProjectStatusUpdater.tsx
 │   │   ├── ProjectSummaryCard.tsx
 │   │   ├── QuickStats.tsx
+│   │   ├── ScheduleView.tsx
 │   │   ├── Sidebar.tsx
 │   │   ├── StatCard.tsx
+│   │   ├── StatDetailModal.tsx
 │   │   └── WorkshopKanban.tsx
 │   └── ui
 │       ├── Button.tsx
@@ -75,6 +92,83 @@
 
 ================== FILE CONTENTS ==================
 
+
+==================== app\AuthContext.tsx ====================
+
+// [path]: app/AuthContext.tsx
+
+'use client';
+
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { UserRole, User } from '@/lib/types';
+import { mockUsers } from '@/lib/mock-data';
+import { useRouter } from 'next/navigation';
+
+interface AuthContextType {
+  user: User | null; // Changed from userRole to user
+  login: (role: UserRole) => void;
+  logout: () => void;
+  isLoading: boolean;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null); // Changed from userRole
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem('AAM_USER');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (error) {
+        console.error("Could not access localStorage:", error);
+    }
+    setIsLoading(false);
+  }, []);
+
+  const login = (role: UserRole) => {
+    // Find the first mock user that matches the selected role
+    const userToLogin = mockUsers.find(u => u.role === role);
+    if (userToLogin) {
+        try {
+          localStorage.setItem('AAM_USER', JSON.stringify(userToLogin));
+          setUser(userToLogin);
+        } catch (error) {
+          console.error("Could not set user in localStorage:", error);
+        }
+    } else {
+        console.error("No mock user found for role:", role);
+    }
+  };
+
+  const logout = () => {
+    try {
+      localStorage.removeItem('AAM_USER');
+      setUser(null);
+      router.push('/');
+    } catch (error) {
+      console.error("Could not remove user from localStorage:", error);
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 ==================== app\favicon.ico ====================
 
@@ -155,6 +249,7 @@ html {
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "./AuthContext"; // Import the provider
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -200,13 +295,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        {/* This main tag is the entry point for all other page and layout content. */}
-        <main>{children}</main>
+        {/* Wrap the entire app in the AuthProvider */}
+        <AuthProvider>
+          <main>{children}</main>
+        </AuthProvider>
       </body>
     </html>
   );
 }
-
 
 ==================== app\not-found.tsx ====================
 
@@ -316,44 +412,77 @@ export default function DashboardLayout({
 
 ==================== app\(dashboard)\dashboard\page.tsx ====================
 
+// [path]: app/(dashboard)/dashboard/page.tsx
+
+'use client';
+
 import { getProjects } from '@/lib/data-service';
 import ProjectSummaryCard from '@/components/dashboard/ProjectSummaryCard';
 import QuickStats from '@/components/dashboard/QuickStats';
 import { calculateOverallProgress } from '@/lib/utils';
-// IMPORT OUR NEW COMPONENT
 import ActionRequiredFeed from '@/components/dashboard/ActionRequiredFeed';
+import ExceptionTiles from '@/components/dashboard/ExceptionTiles';
+// --- NEW: Import useState and the new modal component ---
+import { useState } from 'react';
+import StatDetailModal from '@/components/dashboard/StatDetailModal';
+import { Project } from '@/lib/types';
 
 export default function DashboardPage() {
   const projects = getProjects();
-  
+
+  // --- NEW: State to control the modal ---
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalProjects, setModalProjects] = useState<Project[]>([]);
+
+  // --- NEW: Handler to open the modal with the correct data ---
+  const handleStatCardClick = (title: string, filteredProjects: Project[]) => {
+    setModalTitle(title);
+    setModalProjects(filteredProjects);
+    setIsModalOpen(true);
+  };
+
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white">Welcome back, Boss!</h1>
-        <p className="text-gray-400">Here’s what needs your attention.</p>
-      </div>
+    <>
+      <div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white">Welcome back, Boss!</h1>
+          <p className="text-gray-400">Here’s what needs your attention.</p>
+        </div>
 
-      <div className="mb-8">
-        <QuickStats projects={projects} />
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-         <div className="xl:col-span-2">
-          <h2 className="text-2xl font-bold text-white mb-4">Active Projects</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {projects.filter(p => p.status === 'Active' || p.status === 'On Hold').map(project => {
-              const progress = calculateOverallProgress(project);
-              return <ProjectSummaryCard key={project.id} project={project} progress={progress} />;
-            })}
-          </div>
+        <div className="mb-8">
+          {/* --- NEW: Pass the handler to QuickStats --- */}
+          <QuickStats projects={projects} onCardClick={handleStatCardClick} />
         </div>
         
-        {/* THE OLD COMPONENTS ARE REMOVED AND REPLACED WITH OUR NEW FEED */}
-        <div className="xl:col-span-1 space-y-8">
-            <ActionRequiredFeed projects={projects} />
+        {/* Pass the handler to ExceptionTiles as well to make them clickable */}
+        <ExceptionTiles projects={projects} onTileClick={handleStatCardClick} />
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          <div className="xl:col-span-2">
+            <h2 className="text-2xl font-bold text-white mb-4">Active Projects</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {projects.filter(p => p.status === 'Active' || p.status === 'On Hold').map(project => {
+                const progress = calculateOverallProgress(project);
+                return <ProjectSummaryCard key={project.id} project={project} progress={progress} />;
+              })}
+            </div>
+          </div>
+          
+          <div className="xl:col-span-1 space-y-8">
+              <ActionRequiredFeed projects={projects} />
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* --- NEW: Render the modal component --- */}
+      <StatDetailModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={modalTitle}
+        projects={modalProjects}
+      />
+    </>
    );
 }
 
@@ -418,6 +547,84 @@ export default function CustomersPage() {
       </div>
     </div>
   );
+}
+
+==================== app\(dashboard)\dashboard\financials\page.tsx ====================
+
+// [path]: app/(dashboard)/dashboard/financials/page.tsx
+
+'use client';
+
+import { getProjects } from '@/lib/data-service';
+// --- CORRECTED: Removed unused 'Project' import ---
+import { calculateProjectCosts, calculateProjectProfitability } from '@/lib/utils';
+import Link from 'next/link';
+
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount);
+};
+
+export default function FinancialsPage() {
+    const projects = getProjects();
+
+    const getMarginColor = (margin: number) => {
+        if (margin > 25) return 'text-green-400';
+        if (margin > 0) return 'text-yellow-400';
+        return 'text-red-400';
+    };
+
+    return (
+        <div>
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-white">Money Dashboard</h1>
+                <p className="text-gray-400">Profitability and cost analysis for all projects.</p>
+            </div>
+
+            <div className="bg-gray-800 border border-white/10 rounded-lg shadow-soft overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-700">
+                        <thead className="bg-gray-900/50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Project</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Quoted</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Total Cost</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Net Profit</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Margin</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-gray-800 divide-y divide-gray-700">
+                            {projects.map(project => {
+                                const { totalCost } = calculateProjectCosts(project);
+                                const { netProfit, margin } = calculateProjectProfitability(project);
+
+                                return (
+                                    <tr key={project.id} className="hover:bg-gray-700/50">
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <Link href={`/dashboard/projects/${project.id}`} className="text-sm font-medium text-red-500 hover:underline">
+                                                {project.car.year} {project.car.make} {project.car.model}
+                                            </Link>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                            {formatCurrency(project.financials.totalQuoted)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                            {formatCurrency(totalCost)}
+                                        </td>
+                                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${getMarginColor(margin)}`}>
+                                            {formatCurrency(netProfit)}
+                                        </td>
+                                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${getMarginColor(margin)}`}>
+                                            {margin.toFixed(1)}%
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 ==================== app\(dashboard)\dashboard\media\page.tsx ====================
@@ -561,6 +768,205 @@ export default function MediaPage() {
   );
 }
 
+==================== app\(dashboard)\dashboard\my-tasks\page.tsx ====================
+
+// [path]: app/(dashboard)/dashboard/my-tasks/page.tsx
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { getProjects, logTaskTime } from '@/lib/data-service';
+import { mockTechnicians } from '@/lib/mock-data';
+import { AssignedTask, SubTask } from '@/lib/types'; 
+import Link from 'next/link';
+import { CheckCircle2, Circle, Clock, AlertOctagon, Flame } from 'lucide-react';
+import { useAuth } from '@/app/AuthContext';
+import JobCardModal from '@/components/dashboard/JobCardModal';
+
+export default function TechnicianTasksPage() {
+  const { user, isLoading } = useAuth();
+  const [myTasks, setMyTasks] = useState<AssignedTask[]>([]);
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<AssignedTask | null>(null);
+
+  // --- NEW: State to manage the active timer ---
+  const [activeTimerTaskId, setActiveTimerTaskId] = useState<string | null>(null);
+  const [timerStartTime, setTimerStartTime] = useState<number | null>(null);
+
+  const fetchTasks = () => {
+    if (!isLoading && user && user.role === 'Technician') {
+        const allProjects = getProjects();
+        const assignedTasks: AssignedTask[] = [];
+        const currentTechnician = mockTechnicians.find(tech => tech.name === user.name);
+        if (!currentTechnician) return;
+
+        allProjects.forEach(project => {
+            if (project.status === 'Active' || project.status === 'On Hold') {
+                project.categories.forEach(category => {
+                    category.subTasks.forEach(task => {
+                        if (task.assignedTo === currentTechnician.id) {
+                            assignedTasks.push({ ...task, projectId: project.id, projectName: `${project.car.year} ${project.car.make} ${project.car.model}`, categoryName: category.name });
+                        }
+                    });
+                });
+            }
+        });
+
+        const priorityOrder: Record<SubTask['priority'], number> = { 'Urgent': 1, 'High': 2, 'Normal': 3, 'Low': 4 };
+        const statusOrder = { 'In Progress': 1, 'Pending': 2, 'Awaiting Approval': 3, 'Completed': 4 };
+        assignedTasks.sort((a, b) => {
+            if (priorityOrder[a.priority] !== priorityOrder[b.priority]) { return priorityOrder[a.priority] - priorityOrder[b.priority]; }
+            return statusOrder[a.status] - statusOrder[b.status];
+        });
+        setMyTasks(assignedTasks);
+    }
+  };
+
+  useEffect(fetchTasks, [user, isLoading]);
+
+  // --- NEW: Timer Handler Logic ---
+  const handleStartTimer = (task: AssignedTask) => {
+    if (activeTimerTaskId) {
+        alert("Another timer is already running. Please stop it before starting a new one.");
+        return;
+    }
+    setActiveTimerTaskId(task.id);
+    setTimerStartTime(Date.now());
+  };
+
+  const handleStopTimer = () => {
+    if (!activeTimerTaskId || !timerStartTime) return;
+
+    const endTime = Date.now();
+    const elapsedMilliseconds = endTime - timerStartTime;
+    const elapsedHours = elapsedMilliseconds / (1000 * 60 * 60);
+
+    const taskToUpdate = myTasks.find(t => t.id === activeTimerTaskId);
+    if (taskToUpdate) {
+        logTaskTime(taskToUpdate.projectId, taskToUpdate.categoryName, taskToUpdate.id, elapsedHours);
+        // Refetch tasks to get the updated actualHours
+        fetchTasks();
+    }
+
+    // Reset timer state
+    setActiveTimerTaskId(null);
+    setTimerStartTime(null);
+  };
+
+
+  const handleTaskClick = (task: AssignedTask) => {
+    setSelectedTask(task);
+    setIsModalOpen(true);
+  };
+
+  const getStatusIndicator = (status: SubTask['status']) => {
+    switch(status) {
+        case 'Completed': return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+        case 'Awaiting Approval': return <Clock className="h-5 w-5 text-yellow-500" />;
+        default: return <Circle className="h-5 w-5 text-gray-600" />;
+    }
+  }
+
+  const getPriorityStyles = (priority: SubTask['priority']): { indicator: string; tag: string; icon: React.ReactNode } => {
+    switch(priority) {
+        case 'Urgent': return { indicator: 'border-l-4 border-red-500', tag: 'bg-red-900/80 text-red-300', icon: <Flame className="h-3 w-3 mr-1.5" /> };
+        case 'High': return { indicator: 'border-l-4 border-yellow-500', tag: 'bg-yellow-900/80 text-yellow-300', icon: <AlertOctagon className="h-3 w-3 mr-1.5" /> };
+        default: return { indicator: 'border-l-4 border-transparent', tag: '', icon: null };
+    }
+  };
+
+  if (isLoading) return <p className="text-gray-400">Loading tasks...</p>
+  if (!user) return <p className="text-red-500">Error: Not logged in.</p>
+
+  return (
+    <>
+      <div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white">My Prioritized Tasks</h1>
+          <p className="text-gray-400">Viewing tasks for {user.name}, most urgent first. Click a task for details.</p>
+        </div>
+
+        <div className="space-y-4">
+          {myTasks.length > 0 ? myTasks.map(task => {
+              const priorityStyles = getPriorityStyles(task.priority);
+              return (
+                  <div key={task.id} onClick={() => handleTaskClick(task)} className={`bg-gray-800 border border-white/10 p-4 rounded-lg flex items-center justify-between transition-all hover:border-red-500/50 hover:bg-gray-700/50 cursor-pointer ${priorityStyles.indicator}`}>
+                      <div className="flex items-center">
+                          <div className="mr-4">{getStatusIndicator(task.status)}</div>
+                          <div>
+                              <p className={`font-semibold text-lg ${task.status === 'Completed' ? 'text-gray-500 line-through' : 'text-white'}`}>{task.name}</p>
+                              <Link href={`/dashboard/projects/${task.projectId}`} onClick={(e) => e.stopPropagation()} className="text-sm text-red-500 hover:underline">
+                                  {task.projectName} ({task.categoryName})
+                              </Link>
+                          </div>
+                      </div>
+                      <div className="text-right flex items-center space-x-4">
+                          {task.priority !== 'Normal' && task.priority !== 'Low' && (
+                            <span className={`px-3 py-1 text-xs font-semibold rounded-full inline-flex items-center ${priorityStyles.tag}`}>
+                                {priorityStyles.icon} {task.priority}
+                            </span>
+                          )}
+                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${task.status === 'Completed' ? 'bg-gray-700 text-gray-400' : task.status === 'Awaiting Approval' ? 'bg-yellow-900/50 text-yellow-300' : 'bg-blue-900/50 text-blue-300'}`}>
+                              {task.status}
+                          </span>
+                      </div>
+                  </div>
+              );
+          }) : (
+              <div className="text-center py-16 bg-gray-800 rounded-lg"><p className="text-gray-500">You have no tasks assigned.</p></div>
+          )}
+        </div>
+      </div>
+      <JobCardModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        task={selectedTask}
+        // --- NEW: Pass timer state and handlers to the modal ---
+        activeTimerTaskId={activeTimerTaskId}
+        timerStartTime={timerStartTime}
+        onStartTimer={handleStartTimer}
+        onStopTimer={handleStopTimer}
+      />
+    </>
+  );
+}
+
+==================== app\(dashboard)\dashboard\parts\page.tsx ====================
+
+// [path]: app/(dashboard)/dashboard/parts/page.tsx
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { getProjects } from '@/lib/data-service';
+import { Project } from '@/lib/types';
+import PartsBoard from '@/components/dashboard/PartsBoard';
+
+export default function PartsPage() {
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setProjects(getProjects());
+        setIsLoading(false);
+    }, []);
+
+    if (isLoading) {
+        return <div className="flex items-center justify-center h-full"><p className="text-gray-400">Loading Parts Hub...</p></div>;
+    }
+
+    return (
+        <div>
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-white">Parts & Procurement Hub</h1>
+                <p className="text-gray-400">A global overview of all parts required for active jobs.</p>
+            </div>
+            <PartsBoard allProjects={projects} />
+        </div>
+    );
+}
+
 ==================== app\(dashboard)\dashboard\projects\page.tsx ====================
 
 'use client';
@@ -670,14 +1076,16 @@ export default function ProjectsPage() {
 
 ==================== app\(dashboard)\dashboard\projects\new\page.tsx ====================
 
+// [path]: app/(dashboard)/dashboard/projects/new/page.tsx
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Car, User, ListChecks, ArrowRight } from 'lucide-react';
-import { fullRestorationTemplate, majorServiceTemplate } from '@/lib/project-templates';
-import { addProject } from '@/lib/data-service';
+// --- MODIFIED: Corrected the import path for getTemplates ---
+import { getTemplates, addProject } from '@/lib/data-service';
 import { Category } from '@/lib/types';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
@@ -685,8 +1093,12 @@ import Button from '@/components/ui/Button';
 export default function NewProjectPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
+  const [allTemplates, setAllTemplates] = useState<Category[][]>([]);
 
-  // Form State
+  useEffect(() => {
+    setAllTemplates(getTemplates());
+  }, []);
+
   const [customerName, setCustomerName] = useState('');
   const [carYear, setCarYear] = useState('');
   const [carMake, setCarMake] = useState('');
@@ -699,36 +1111,18 @@ export default function NewProjectPage() {
         return;
     }
 
-    // UPDATED: The new project object now includes all required fields for consistency.
     addProject({
         customerName: customerName,
-        car: {
-            year: parseInt(carYear),
-            make: carMake,
-            model: carModel,
-        },
+        car: { year: parseInt(carYear), make: carMake, model: carModel },
         status: 'Active',
-        holdReason: '', // Initialize as empty
+        holdReason: '',
         createdAt: new Date().toISOString().split('T')[0],
         categories: selectedTemplate,
-        timeline: [{
-            id: `t-${Date.now()}`,
-            date: new Date().toISOString().split('T')[0],
-            update: 'Project created and added to the system.',
-            category: 'Project Start'
-        }],
+        timeline: [{ id: `t-${Date.now()}`, date: new Date().toISOString().split('T')[0], update: 'Project created and added to the system.', category: 'Project Start' }],
         media: [],
-        internalNotes: [], // Initialize as empty array
-        messages: [], // Initialize as empty array
-        financials: { // Initialize with default financial info
-            invoices: [],
-            totalQuoted: 0,
-            totalPaid: 0,
-        },
+        messages: [],
+        financials: { invoices: [], totalQuoted: 0, totalPaid: 0 },
     });
-
-    // NOTE: In a real app with a state management solution, the newly created project
-    // would be added to the global state here to update the UI instantly.
     router.push('/dashboard/projects');
   };
 
@@ -753,7 +1147,7 @@ export default function NewProjectPage() {
       <div className="mb-8 p-4 bg-gray-800 border border-white/10 rounded-lg shadow-soft">
         <ol className="flex items-center w-full">
            {steps.map((s, index) => (
-            <li key={s.number} className={`flex w-full items-center ${index < steps.length - 1 ? "after:content-[''] after:w-full after:h-1 after:border-b after:border-gray-700 after:border-1 after:inline-block" : ""}`}>
+             <li key={s.number} className={`flex w-full items-center ${index < steps.length - 1 ? "after:content-[''] after:w-full after:h-1 after:border-b after:border-gray-700 after:border-1 after:inline-block" : ""}`}>
               <span className={`flex items-center justify-center w-10 h-10 rounded-full lg:h-12 lg:w-12 shrink-0 ${step >= s.number ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-400'}`}>
                 <s.icon className="w-5 h-5" />
               </span>
@@ -763,13 +1157,7 @@ export default function NewProjectPage() {
       </div>
 
       <AnimatePresence mode="wait">
-        <motion.div
-          key={step}
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-           exit={{ opacity: 0, x: -50 }}
-          transition={{ duration: 0.3 }}
-        >
+        <motion.div key={step} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} transition={{ duration: 0.3 }}>
           {step === 1 && (
             <div className="bg-gray-800 border border-white/10 p-8 rounded-lg shadow-soft">
               <h2 className="text-2xl font-bold text-white mb-6">Step 1: Customer & Car Details</h2>
@@ -789,14 +1177,15 @@ export default function NewProjectPage() {
             <div className="bg-gray-800 border border-white/10 p-8 rounded-lg shadow-soft">
               <h2 className="text-2xl font-bold text-white mb-6">Step 2: Select Project Type</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div onClick={() => selectTemplate(fullRestorationTemplate)} className="p-6 border border-gray-700 rounded-lg hover:bg-gray-700 cursor-pointer text-center">
-                  <h3 className="font-bold text-lg text-white">Full Restoration</h3>
-                  <p className="text-sm text-gray-400">{fullRestorationTemplate.length} categories</p>
-                </div>
-                <div onClick={() => selectTemplate(majorServiceTemplate)} className="p-6 border border-gray-700 rounded-lg hover:bg-gray-700 cursor-pointer text-center">
-                  <h3 className="font-bold text-lg text-white">Major Service</h3>
-                  <p className="text-sm text-gray-400">{majorServiceTemplate.length} categories</p>
-                </div>
+                {allTemplates.map((template, index) => {
+                  const templateName = template[0]?.name.split(' - ')[0] || `Template ${index + 1}`;
+                  return (
+                    <div key={index} onClick={() => selectTemplate(template)} className="p-6 border border-gray-700 rounded-lg hover:bg-gray-700 cursor-pointer text-center">
+                      <h3 className="font-bold text-lg text-white">{templateName}</h3>
+                      <p className="text-sm text-gray-400">{template.length} categories</p>
+                    </div>
+                  );
+                })}
                 <div onClick={() => selectTemplate([])} className="p-6 border border-gray-700 rounded-lg hover:bg-gray-700 cursor-pointer text-center">
                   <h3 className="font-bold text-lg text-white">Custom Job</h3>
                   <p className="text-sm text-gray-400">Start with a blank slate</p>
@@ -817,7 +1206,7 @@ export default function NewProjectPage() {
                 Save New Project
               </Button>
             </div>
-          )}
+           )}
         </motion.div>
       </AnimatePresence>
     </div>
@@ -826,13 +1215,16 @@ export default function NewProjectPage() {
 
 ==================== app\(dashboard)\dashboard\projects\[projectId]\page.tsx ====================
 
+// [path]: app/(dashboard)/dashboard/projects/[projectId]/page.tsx
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { getProjectById } from '@/lib/data-service';
+// --- NEW: Import updateCategoryQaStatus ---
+import { getProjectById, updateProject, deleteProject, updateCategoryQaStatus } from '@/lib/data-service';
 import { mockTechnicians } from '@/lib/mock-data';
-import { Project, Category, SubTask, TimelineUpdate, Technician, Message, Invoice } from '@/lib/types';
+import { Project, TimelineUpdate, Technician, Message, SubTask } from '@/lib/types';
 import ProjectHeader from '@/components/ProjectHeader';
 import InteractiveProgressCategory from '@/components/dashboard/InteractiveProgressCategory';
 import AddTimelineForm from '@/components/dashboard/AddTimelineForm';
@@ -844,125 +1236,138 @@ import Timeline from '@/components/Timeline';
 import { calculateOverallProgress } from '@/lib/utils';
 import MessagingCenter from '@/components/dashboard/MessagingCenter';
 import FinancialsPanel from '@/components/dashboard/FinancialsPanel';
+import { useAuth } from '@/app/AuthContext';
 
 export default function WorkshopProjectPage({ params }: { params: { projectId: string } }) {
   const router = useRouter();
+  const { user } = useAuth();
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
-  
+
   useEffect(() => {
     const foundProject = getProjectById(params.projectId);
-    if (foundProject) {
-      setProject(JSON.parse(JSON.stringify(foundProject)));
-    }
+    setProject(foundProject || null);
     setTechnicians(mockTechnicians);
     setIsLoading(false);
   }, [params.projectId]);
 
-  const handleTaskToggle = (taskId: string, categoryId: string) => {
-    setProject(currentProject => {
-      if (!currentProject) return null;
-      const newProject = JSON.parse(JSON.stringify(currentProject)) as Project;
-      const category = newProject.categories.find(c => c.id === categoryId);
-      if (category) {
-        const task = category.subTasks.find(t => t.id === taskId);
-        if (task) task.completed = !task.completed;
+  const saveProject = useCallback((updatedProject: Project) => {
+    setProject(updatedProject);
+    updateProject(updatedProject.id, updatedProject);
+  }, []);
+
+  // --- NEW: Handler for QA status changes ---
+  const handleQaStatusChange = useCallback((categoryId: string, qaPassed: boolean) => {
+    if (!project) return;
+    const updatedProject = updateCategoryQaStatus(project.id, categoryId, qaPassed);
+    if(updatedProject) {
+        setProject(JSON.parse(JSON.stringify(updatedProject)));
+    }
+  }, [project]);
+
+  const handleTaskStatusChange = (taskId: string, categoryId: string) => {
+    if (!project) return;
+    const newProject = JSON.parse(JSON.stringify(project)) as Project;
+    const category = newProject.categories.find(c => c.id === categoryId);
+    if (category) {
+      const task = category.subTasks.find(t => t.id === taskId);
+      if (task) {
+        const statusCycle: SubTask['status'][] = ['Pending', 'In Progress', 'Awaiting Approval', 'Completed'];
+        const currentIndex = statusCycle.indexOf(task.status);
+        const nextIndex = (currentIndex + 1) % statusCycle.length;
+        task.status = statusCycle[nextIndex];
       }
-      return newProject;
-    });
+    }
+    saveProject(newProject);
   };
 
-  // NEW: Handler to toggle the approval flag on a task
   const handleToggleApproval = (taskId: string, categoryId: string) => {
-    setProject(currentProject => {
-        if (!currentProject) return null;
-        const newProject = JSON.parse(JSON.stringify(currentProject)) as Project;
-        const category = newProject.categories.find(c => c.id === categoryId);
-        if (category) {
-            const task = category.subTasks.find(t => t.id === taskId);
-            if (task) {
-                task.requiresClientApproval = !task.requiresClientApproval;
-            }
-        }
-        return newProject;
-    });
+    if (!project) return;
+    const newProject = JSON.parse(JSON.stringify(project)) as Project;
+    const category = newProject.categories.find(c => c.id === categoryId);
+    if (category) {
+      const task = category.subTasks.find(t => t.id === taskId);
+      if (task) task.requiresClientApproval = !task.requiresClientApproval;
+    }
+    saveProject(newProject);
   };
 
   const handleTaskAssign = (taskId: string, categoryId: string, techId: string) => {
-    setProject(currentProject => {
-        if (!currentProject) return null;
-        const newProject = JSON.parse(JSON.stringify(currentProject)) as Project;
-        const category = newProject.categories.find(c => c.id === categoryId);
-        if (category) {
-            const task = category.subTasks.find(t => t.id === taskId);
-            if (task) task.assignedTo = techId || undefined;
-        }
-        return newProject;
-    });
+    if (!project) return;
+    const newProject = JSON.parse(JSON.stringify(project)) as Project;
+    const category = newProject.categories.find(c => c.id === categoryId);
+    if (category) {
+      const task = category.subTasks.find(t => t.id === taskId);
+      if (task) task.assignedTo = techId || undefined;
+    }
+    saveProject(newProject);
   };
 
-  const handleSendMessage = (message: Omit<Message, 'id' | 'createdAt'>) => {
-    setProject(currentProject => {
-      if (!currentProject) return null;
-      const newMessage: Message = { ...message, id: `msg-${Date.now()}`, createdAt: new Date().toISOString() };
-      return { ...currentProject, messages: [...currentProject.messages, newMessage] };
-    });
+  const handleSendMessage = (message: Omit<Message, 'id' | 'createdAt' | 'authorRole'>) => {
+    if (!project || !user) return;
+    const newMessage: Message = { 
+        ...message, 
+        id: `msg-${Date.now()}`, 
+        createdAt: new Date().toISOString(),
+        authorRole: user.role
+    };
+    const newProject = { ...project, messages: [...project.messages, newMessage] };
+    saveProject(newProject);
   };
 
   const handleTimelineAdd = (newUpdate: Omit<TimelineUpdate, 'id' | 'date'>) => {
+    if (!project) return;
     const newEntry: TimelineUpdate = { ...newUpdate, id: `t-${Date.now()}`, date: new Date().toISOString().split('T')[0] };
-    setProject(currentProject => {
-      if (!currentProject) return null;
-      return { ...currentProject, timeline: [newEntry, ...currentProject.timeline] };
-    });
+    const newProject = { ...project, timeline: [newEntry, ...project.timeline] };
+    saveProject(newProject);
   };
 
   const handleStatusChange = (newStatus: Project['status'], holdReason: Project['holdReason']) => {
-      const reasonText = newStatus === 'On Hold' ? `Project on hold. Reason: ${holdReason}.` : `Project status changed to ${newStatus}.`;
-      const newEntry: TimelineUpdate = { id: `t-status-${Date.now()}`, date: new Date().toISOString().split('T')[0], update: reasonText, category: 'Project Status' };
-      setProject(currentProject => {
-          if (!currentProject) return null;
-          return { ...currentProject, status: newStatus, holdReason: holdReason, timeline: [newEntry, ...currentProject.timeline] };
-      });
+    if (!project) return;
+    const reasonText = newStatus === 'On Hold' ? `Project on hold. Reason: ${holdReason}.` : `Project status changed to ${newStatus}.`;
+    const newEntry: TimelineUpdate = { id: `t-status-${Date.now()}`, date: new Date().toISOString().split('T')[0], update: reasonText, category: 'Project Status' };
+    const newProject = { ...project, status: newStatus, holdReason: holdReason, timeline: [newEntry, ...project.timeline] };
+    saveProject(newProject);
   };
 
   const handleMarkAsPaid = (invoiceId: string) => {
-    setProject(currentProject => {
-        if (!currentProject) return null;
-        const newProject = JSON.parse(JSON.stringify(currentProject)) as Project;
-        const invoice = newProject.financials.invoices.find(inv => inv.id === invoiceId);
-        if (invoice && invoice.status !== 'Paid') {
-            invoice.status = 'Paid';
-            newProject.financials.totalPaid += invoice.amount;
-            if (newProject.status === 'On Hold' && newProject.holdReason === 'Awaiting Payment') {
-                newProject.status = 'Active';
-                newProject.holdReason = '';
-                const timelineUpdate: TimelineUpdate = { id: `t-payment-${Date.now()}`, date: new Date().toISOString().split('T')[0], update: `Payment for '${invoice.description}' received. Work is resuming.`, category: 'Financial' };
-                newProject.timeline.unshift(timelineUpdate);
-            }
+    if (!project) return;
+    const newProject = JSON.parse(JSON.stringify(project)) as Project;
+    const invoice = newProject.financials.invoices.find(inv => inv.id === invoiceId);
+    if (invoice && invoice.status !== 'Paid') {
+        invoice.status = 'Paid';
+        newProject.financials.totalPaid += invoice.amount;
+        if (newProject.status === 'On Hold' && newProject.holdReason === 'Awaiting Payment') {
+            newProject.status = 'Active';
+            newProject.holdReason = '';
+            const timelineUpdate: TimelineUpdate = { id: `t-payment-${Date.now()}`, date: new Date().toISOString().split('T')[0], update: `Payment for '${invoice.description}' received. Work is resuming.`, category: 'Financial' };
+            newProject.timeline.unshift(timelineUpdate);
         }
-        return newProject;
-    });
+    }
+    saveProject(newProject);
   };
 
   const handleSaveEdits = (updatedData: Partial<Project>) => {
-     setProject(currentProject => currentProject ? { ...currentProject, ...updatedData } : null);
+    if (!project) return;
+    const newProject = { ...project, ...updatedData };
+    saveProject(newProject);
   };
 
   const handleDelete = () => {
     if (project) {
+        deleteProject(project.id);
         router.push('/dashboard/projects');
     }
   };
 
-  if (isLoading) return <div className="flex items-center justify-center h-full"><p className="text-gray-400">Loading Project...</p></div>;
+  if (isLoading || !user) return <div className="flex items-center justify-center h-full"><p className="text-gray-400">Loading Project...</p></div>;
   if (!project) return <div className="flex items-center justify-center h-full"><h1 className="text-2xl font-bold text-red-500">Project Not Found</h1></div>;
 
   const overallProgress = calculateOverallProgress(project);
-  
+
   return (
     <>
       <EditProjectModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSave={handleSaveEdits} project={project} />
@@ -972,24 +1377,26 @@ export default function WorkshopProjectPage({ params }: { params: { projectId: s
         <ProjectHeader project={project} overallProgress={overallProgress} onEdit={() => setIsEditModalOpen(true)} />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
-            <FinancialsPanel project={project} onMarkAsPaid={handleMarkAsPaid} />
-            <MessagingCenter project={project} currentUserRole="Boss" onSendMessage={handleSendMessage} />
-            <div>
+            <div id="financials" className="scroll-mt-24"><FinancialsPanel project={project} onMarkAsPaid={handleMarkAsPaid} /></div>
+            <div id="messages" className="scroll-mt-24"><MessagingCenter project={project} currentUserRole={user.role} onSendMessage={handleSendMessage} /></div>
+            <div id="progress" className="scroll-mt-24">
               <h2 className="text-2xl font-bold mb-4 text-white">Manage Progress</h2>
               <div className="space-y-6">
                 {project.categories.map(category => (
-                  <InteractiveProgressCategory 
+                   <InteractiveProgressCategory 
                     key={category.id} 
                     category={category}
                     technicians={technicians}
-                    onTaskToggle={handleTaskToggle} 
+                    onTaskToggle={handleTaskStatusChange}
                     onTaskAssign={handleTaskAssign}
-                    onToggleApproval={handleToggleApproval} // Pass the new handler down
+                    onToggleApproval={handleToggleApproval}
+                    // --- NEW: Pass the QA handler down to the component ---
+                    onQaStatusChange={handleQaStatusChange}
                    />
                 ))}
               </div>
             </div>
-          </div>
+           </div>
           <div className="lg:col-span-1 space-y-8">
             <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft space-y-6 divide-y divide-gray-700">
               <div><h3 className="text-xl font-bold mb-4 text-white">Workshop Tools</h3><AddTimelineForm project={project} onAddUpdate={handleTimelineAdd} /></div>
@@ -1007,18 +1414,43 @@ export default function WorkshopProjectPage({ params }: { params: { projectId: s
   );
 }
 
+==================== app\(dashboard)\dashboard\schedule\page.tsx ====================
+
+// [path]: app/(dashboard)/dashboard/schedule/page.tsx
+
+'use client';
+
+import { getProjects } from '@/lib/data-service';
+import ScheduleView from '@/components/dashboard/ScheduleView';
+
+export default function SchedulePage() {
+    const projects = getProjects();
+
+    return (
+        <div>
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-white">Workshop Schedule</h1>
+                <p className="text-gray-400">A visual timeline of assigned tasks across the workshop.</p>
+            </div>
+            <ScheduleView allProjects={projects} />
+        </div>
+    );
+}
+
 ==================== app\(dashboard)\dashboard\settings\page.tsx ====================
+
+// [path]: app/(dashboard)/dashboard/settings/page.tsx
 
 'use client';
 
 import { useState } from 'react';
-import { User, Bell, Palette } from 'lucide-react';
+import { User, Bell, Palette, Wrench } from 'lucide-react';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
 import Button from '@/components/ui/Button';
 
 export default function SettingsPage() {
   const [emailNotifications, setEmailNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(true); // Default to true for consistency
+  const [darkMode, setDarkMode] = useState(true);
 
   return (
     <div>
@@ -1036,7 +1468,6 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500">Name</label>
-              {/* This is the corrected line */}
               <p className="text-lg text-white">John &quot;Boss&quot; Doe (Placeholder)</p>
             </div>
             <div>
@@ -1044,6 +1475,24 @@ export default function SettingsPage() {
               <p className="text-lg text-white">boss@allamericanmuscle.co.za</p>
             </div>
             <Button variant="outline" size="sm">Edit Profile</Button>
+           </div>
+        </div>
+
+        {/* Workshop Management Section */}
+        <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+            <Wrench className="mr-3 text-gray-400" /> Workshop Management
+          </h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-200">Project Templates</p>
+                <p className="text-sm text-gray-400">Create and manage templates for new projects.</p>
+              </div>
+              <Button href="/dashboard/settings/templates" variant="secondary" size="sm">
+                Manage Templates
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -1053,7 +1502,7 @@ export default function SettingsPage() {
             <Bell className="mr-3 text-gray-400" /> Notifications
           </h2>
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+           <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-gray-200">Email Notifications</p>
                 <p className="text-sm text-gray-400">Receive an email when a customer comments.</p>
@@ -1074,14 +1523,81 @@ export default function SettingsPage() {
                 <p className="font-medium text-gray-200">Dark Mode</p>
                 <p className="text-sm text-gray-400">Toggle the UI theme.</p>
               </div>
-              <ToggleSwitch enabled={darkMode} setEnabled={setDarkMode} />
+               <ToggleSwitch enabled={darkMode} setEnabled={setDarkMode} />
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
+}
+
+==================== app\(dashboard)\dashboard\settings\templates\page.tsx ====================
+
+// [path]: app/(dashboard)/dashboard/settings/templates/page.tsx
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { getTemplates, saveTemplates } from '@/lib/data-service';
+import { Category } from '@/lib/types';
+import Button from '@/components/ui/Button';
+import { Plus, Trash2, Edit } from 'lucide-react';
+
+export default function TemplatesPage() {
+    const [templates, setTemplates] = useState<Category[][]>([]);
+
+    useEffect(() => {
+        setTemplates(getTemplates());
+    }, []);
+
+    const handleDelete = (templateIndex: number) => {
+        if (confirm('Are you sure you want to delete this template?')) {
+            const newTemplates = templates.filter((_, index) => index !== templateIndex);
+            setTemplates(newTemplates);
+            saveTemplates(newTemplates);
+        }
+    };
+
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold text-white">Project Templates</h1>
+                    <p className="text-gray-400">Manage the starting templates for new projects.</p>
+                </div>
+                <Button href="/dashboard/settings/templates/new" variant="primary">
+                    <Plus className="-ml-1 mr-2 h-5 w-5" />
+                    New Template
+                </Button>
+            </div>
+            
+            <div className="space-y-4">
+                {templates.map((template, index) => {
+                    const templateName = template[0]?.name.split(' - ')[0] || `Template ${index + 1}`;
+                    const categoryCount = template.length;
+                    const taskCount = template.reduce((acc, cat) => acc + cat.subTasks.length, 0);
+
+                    return (
+                        <div key={index} className="bg-gray-800 border border-white/10 p-4 rounded-lg flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-white">{templateName}</h3>
+                                <p className="text-sm text-gray-400">{categoryCount} Categories, {taskCount} Tasks</p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Button href={`/dashboard/settings/templates/${index}`} size="sm" variant="secondary">
+                                    <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button onClick={() => handleDelete(index)} size="sm" variant="outline">
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
 }
 
 ==================== app\(dashboard)\dashboard\timeline\page.tsx ====================
@@ -1202,35 +1718,51 @@ export default function PublicLayout({
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogIn, Search } from 'lucide-react';
+import { User, Briefcase, Wrench, UserSquare } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Image from 'next/image';
+import { motion } from 'framer-motion';
+import { useAuth } from '../AuthContext'; // Import the useAuth hook
+import { UserRole } from '@/lib/types';
 
 export default function Home() {
   const router = useRouter();
-  const [projectCode, setProjectCode] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const { login } = useAuth(); // Get the login function from our context
+  const [username, setUsername] = useState('user');
+  const [password, setPassword] = useState('password');
 
-  const handleCustomerAccess = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const handleLogin = (role: UserRole) => {
+    login(role); // Set the role in our global context
 
-    // --- MOCK AUTHENTICATION ---
-    // This now correctly redirects to the new public-facing project page.
-    if (projectCode.trim() === 'mustang-1969-smith' && password === 'smith') {
-      router.push(`/projects/${projectCode.trim()}`);
-    } else {
-      setError('Invalid project code or password.');
+    // Redirect to the correct dashboard based on role
+    switch (role) {
+      case 'Boss':
+        router.push('/dashboard');
+        break;
+      case 'Manager':
+        router.push('/dashboard'); // Manager and Boss share the main view for now
+        break;
+      case 'Technician':
+        router.push('/dashboard/my-tasks'); // A new dedicated page for technicians
+        break;
+      case 'Client':
+        router.push('/projects/mustang-1969-smith');
+        break;
     }
   };
 
+  const loginOptions: { role: UserRole; icon: React.ElementType; color: string }[] = [
+    { role: 'Boss', icon: Briefcase, color: 'red' },
+    { role: 'Manager', icon: UserSquare, color: 'blue' },
+    { role: 'Technician', icon: Wrench, color: 'yellow' },
+    { role: 'Client', icon: User, color: 'green' },
+  ];
+
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4">
-      {/* Background Image */}
       <Image
-        src="https://images.unsplash.com/photo-1617546889104-62f321b2383c?q=80&w=2070&auto=format&fit=crop"
+        src="https://images.unsplash.com/photo-1617546889104-62f321b2383c?q=80&w=2070&auto-format&fit=crop"
         alt="Classic muscle car in a workshop"
         fill
         className="object-cover z-0"
@@ -1238,117 +1770,65 @@ export default function Home() {
         priority
       />
       <div className="absolute inset-0 bg-black/70 z-10"></div>
-
-      {/* Login Portal */}
-      <div className="relative z-20 w-full max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <Image
-            src="http://allamericanmuscle.co.za/wp-content/uploads/2025/01/AAM-Logo-3-Transparent.png"
-            alt="All American Muscle Logo"
-            width={300}
-            height={100}
-            className="mx-auto"
-            priority
-          />
-          <h1 className="text-2xl text-gray-300 mt-2">Restoration Project Tracker</h1>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-8 md:gap-4 backdrop-blur-sm bg-gray-900/50 p-8 rounded-lg border border-white/10">
-          
-          {/* Workshop Login */}
-          <div className="flex flex-col p-6 border-r-0 md:border-r md:border-white/10">
-            <h2 className="text-2xl font-bold text-white mb-4 flex items-center">
-              <LogIn className="mr-3 text-red-500" />
-              Workshop Portal
-            </h2>
-            <p className="text-gray-400 mb-6">Internal access for workshop staff.</p>
-            <form className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-300 sr-only">Username</label>
-                <Input type="text" placeholder="Username" />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-300 sr-only">Password</label>
-                <Input type="password" placeholder="Password" />
-              </div>
-              <Button href="/dashboard" variant="primary" className="w-full">
-                Login
-              </Button>
-            </form>
-          </div>
-
-          {/* Customer Access */}
-          <div className="flex flex-col p-6">
-            <h2 className="text-2xl font-bold text-white mb-4 flex items-center">
-              <Search className="mr-3 text-red-500" />
-              Customer Portal
-            </h2>
-            <p className="text-gray-400 mb-6">Enter your project code and password to see its progress.</p>
-            <form onSubmit={handleCustomerAccess} className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-300 sr-only">Project Code</label>
-                <Input 
-                  type="text" 
-                  placeholder="Project Code"
-                  value={projectCode}
-                  onChange={(e) => setProjectCode(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-300 sr-only">Password</label>
-                <Input 
-                  type="password"
-                  placeholder="Password / PIN"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              {error && <p className="text-sm text-red-400">{error}</p>}
-              <Button type="submit" variant="outline" className="w-full">
-                Track My Project
-              </Button>
-            </form>
-          </div>
-
-        </div>
+      <div className="relative z-20 w-full max-w-2xl mx-auto">
+        <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+        >
+            <div className="text-center mb-10">
+              <Image
+                src="http://allamericanmuscle.co.za/wp-content/uploads/2025/01/AAM-Logo-3-Transparent.png"
+                alt="All American Muscle Logo"
+                width={300}
+                height={100}
+                className="mx-auto"
+                priority
+              />
+              <h1 className="text-2xl text-gray-300 mt-2">Restoration Project Tracker</h1>
+            </div>
+            <div className="backdrop-blur-sm bg-gray-900/50 p-8 rounded-lg border border-white/10 shadow-large">
+                <h2 className="text-center text-2xl font-bold text-white mb-6">Select Your Role to Login</h2>
+                <div className="space-y-4 mb-8">
+                     <Input 
+                        type="text" 
+                        placeholder="Username / Email / Project Code"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        required
+                      />
+                      <Input 
+                        type="password"
+                        placeholder="Password / PIN"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {loginOptions.map(opt => (
+                        <Button key={opt.role} onClick={() => handleLogin(opt.role)} variant="secondary" className="w-full">
+                            <opt.icon className={`mr-3 h-5 w-5 text-${opt.color}-400`} />
+                            Login as {opt.role}
+                        </Button>
+                    ))}
+                </div>
+            </div>
+        </motion.div>
       </div>
     </div>
   );
 }
 
-
-==================== app\(public)\projects\[projectId]\layout.tsx ====================
-
-import Footer from "@/components/Footer";
-import Header from "@/components/Header";
-
-// This is a new layout file specifically for public-facing pages.
-// It ensures that pages like the login screen and customer project views
-// have a consistent header and footer without affecting the dashboard layout.
-
-export default function PublicLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <>
-      <Header />
-      <main>{children}</main>
-      <Footer />
-    </>
-  );
-}
-
-
 ==================== app\(public)\projects\[projectId]\page.tsx ====================
+
+// [path]: app/(public)/projects/[projectId]/page.tsx
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getProjectById } from '@/lib/data-service';
+// --- NEW: Import declineTaskApproval ---
+import { getProjectById, updateTaskStatus, declineTaskApproval } from '@/lib/data-service';
 import { Project, Message } from '@/lib/types';
 import ProjectHeader from '@/components/ProjectHeader';
 import ProgressCategory from '@/components/ProgressCategory';
@@ -1357,8 +1837,7 @@ import MediaGallery from '@/components/MediaGallery';
 import { notFound } from 'next/navigation';
 import { calculateOverallProgress } from '@/lib/utils';
 import MessagingCenter from '@/components/dashboard/MessagingCenter';
-// IMPORT THE NEW DECISIONS PANEL
-import DecisionsNeededPanel from '@/components/DecisionsNeededPanel';
+import ApprovalCenter from '@/components/ApprovalCenter';
 
 export default function CustomerProjectPage({ params }: { params: { projectId: string } }) {
   const [project, setProject] = useState<Project | null>(null);
@@ -1374,12 +1853,34 @@ export default function CustomerProjectPage({ params }: { params: { projectId: s
     setIsLoading(false);
   }, [params.projectId]);
 
-  const handleSendMessage = (message: Omit<Message, 'id' | 'createdAt'>) => {
+  const handleSendMessage = (message: Omit<Message, 'id' | 'createdAt' | 'authorRole'>) => {
     setProject(currentProject => {
       if (!currentProject) return null;
-      const newMessage: Message = { ...message, id: `msg-${Date.now()}`, createdAt: new Date().toISOString() };
+      const newMessage: Message = { 
+        ...message, 
+        id: `msg-${Date.now()}`, 
+        createdAt: new Date().toISOString(),
+        authorRole: 'Client'
+      };
       return { ...currentProject, messages: [...currentProject.messages, newMessage] };
     });
+  };
+
+  const handleApproveTask = (taskId: string, categoryId: string) => {
+    if (!project) return;
+    const updatedProject = updateTaskStatus(project.id, categoryId, taskId, 'Completed');
+    if (updatedProject) {
+      setProject(JSON.parse(JSON.stringify(updatedProject)));
+    }
+  };
+
+  // --- NEW: Handler function to decline a task ---
+  const handleDeclineTask = (taskId: string, categoryId: string) => {
+    if (!project) return;
+    const updatedProject = declineTaskApproval(project.id, categoryId, taskId);
+    if (updatedProject) {
+      setProject(JSON.parse(JSON.stringify(updatedProject)));
+    }
   };
 
   if (isLoading) {
@@ -1400,8 +1901,12 @@ export default function CustomerProjectPage({ params }: { params: { projectId: s
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <ProjectHeader project={project} overallProgress={overallProgress} />
         
-        {/* DEPLOY THE NEW DECISIONS PANEL */}
-        <DecisionsNeededPanel project={project} />
+        {/* --- NEW: Pass the decline handler to the ApprovalCenter --- */}
+        <ApprovalCenter 
+          project={project} 
+          onApproveTask={handleApproveTask} 
+          onDeclineTask={handleDeclineTask}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2 space-y-8" id="progress">
@@ -1413,7 +1918,7 @@ export default function CustomerProjectPage({ params }: { params: { projectId: s
              </div>
           </div>
           <div className="lg:col-span-1" id="timeline">
-            <h2 className="text-3xl font-bold text-white mb-8">Project Timeline</h2>
+             <h2 className="text-3xl font-bold text-white mb-8">Project Timeline</h2>
             <Timeline updates={project.timeline} />
           </div>
         </div>
@@ -1432,7 +1937,257 @@ export default function CustomerProjectPage({ params }: { params: { projectId: s
   );
 }
 
+==================== app\(public)\projects\[projectId]\build-book\page.tsx ====================
+
+// [path]: app/(public)/projects/[projectId]/build-book/page.tsx
+
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { notFound, useRouter } from 'next/navigation';
+import { getProjectById } from '@/lib/data-service';
+import { Project, Part } from '@/lib/types';
+import Image from 'next/image';
+import { Download, ArrowLeft } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+
+export default function BuildBookPage({ params }: { params: { projectId: string } }) {
+    const [project, setProject] = useState<Project | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isPrinting, setIsPrinting] = useState(false);
+    const router = useRouter();
+    const printRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const foundProject = getProjectById(params.projectId);
+        setProject(foundProject || null);
+        setIsLoading(false);
+    }, [params.projectId]);
+
+    const handleDownloadPdf = async () => {
+        const element = printRef.current;
+        if (!element) return;
+        
+        setIsPrinting(true);
+
+        try {
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                backgroundColor: '#111111',
+                useCORS: true,
+                logging: false,
+            });
+    
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4',
+            });
+    
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+    
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const ratio = canvasWidth / canvasHeight;
+            
+            const imgHeight = pdfWidth / ratio;
+            let heightLeft = imgHeight;
+            let position = 0;
+    
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+            heightLeft -= pdfHeight;
+    
+            while (heightLeft > 0) {
+                position -= pdfHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+                heightLeft -= pdfHeight;
+            }
+            
+            pdf.save(`${project?.car.year}-${project?.car.make}-${project?.car.model}-BuildBook.pdf`);
+
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            alert("Sorry, there was an error generating the PDF. Please check the console for details.");
+        } finally {
+            setIsPrinting(false);
+        }
+    };
+
+    if (isLoading) return <div className="min-h-screen flex items-center justify-center pt-20"><p>Loading Build Book...</p></div>;
+    if (!project) return notFound();
+
+    const heroImage = project.media.find(m => m.caption.includes('finished')) || project.media[0] || { url: 'https://placehold.co/1280x720/1f2937/ffffff?text=Project+Image', caption: 'Project Image' };
+    const allParts = project.categories.flatMap(c => c.subTasks.flatMap(t => t.parts || [])).filter((part): part is Part => part !== undefined);
+
+    return (
+        <div className="bg-background text-foreground min-h-screen pt-20">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                <div className="flex justify-between items-center mb-8">
+                    <Button onClick={() => router.back()} variant="secondary" size="sm">
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Back to Project
+                    </Button>
+                    <Button onClick={handleDownloadPdf} variant="primary" size="sm" disabled={isPrinting}>
+                        {isPrinting ? 'Generating...' : <><Download className="h-4 w-4 mr-2" />Download as PDF</>}
+                    </Button>
+                </div>
+
+                {/* --- THIS SECTION IS CORRECTED --- */}
+                {/* Replaced opacity-based colors with solid colors for PDF compatibility */}
+                <div ref={printRef} className="p-8 bg-gray-900 border border-gray-700 rounded-lg shadow-2xl">
+                    <div className="relative h-80 rounded-lg overflow-hidden mb-8">
+                        <Image src={heroImage.url} alt={heroImage.caption} fill className="object-cover" unoptimized />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent"></div>
+                        <div className="absolute bottom-6 left-6">
+                            <h1 className="text-4xl font-bold text-white tracking-tight">{project.car.year} {project.car.make} {project.car.model}</h1>
+                            <p className="text-lg text-gray-300">A Restoration Journey for {project.customerName}</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center border-y border-gray-700 py-6 mb-8">
+                        <div><p className="text-sm text-gray-400">VIN</p><p className="font-semibold text-white">{project.car.vin || 'N/A'}</p></div>
+                        <div><p className="text-sm text-gray-400">Completed</p><p className="font-semibold text-white">{project.promisedDate || 'N/A'}</p></div>
+                        <div><p className="text-sm text-gray-400">Mileage In</p><p className="font-semibold text-white">{project.car.mileageIn?.toLocaleString() || 'N/A'}</p></div>
+                        <div><p className="text-sm text-gray-400">Final Cost</p><p className="font-semibold text-green-400">{new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(project.financials.totalQuoted)}</p></div>
+                    </div>
+                    
+                    <div className="mb-8">
+                        <h2 className="text-2xl font-bold text-white mb-4 border-b border-red-500 pb-2">The Journey</h2>
+                        <ul className="space-y-4">
+                            {project.timeline.map(item => (
+                                <li key={item.id}>
+                                    <p className="font-semibold text-gray-300">{item.update}</p>
+                                    <p className="text-sm text-gray-500">{new Date(item.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} - {item.category}</p>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    <div className="mb-8">
+                        <h2 className="text-2xl font-bold text-white mb-4 border-b border-red-500 pb-2">Gallery Showcase</h2>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            {project.media.map(item => (
+                                <div key={item.id} className="relative aspect-video rounded-md overflow-hidden"><Image src={item.url} alt={item.caption} fill className="object-cover" unoptimized/></div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {allParts.length > 0 &&
+                        <div>
+                            <h2 className="text-2xl font-bold text-white mb-4 border-b border-red-500 pb-2">Major Components</h2>
+                            <ul className="columns-2 text-gray-300 list-disc list-inside">
+                                {allParts.map(part => (<li key={part.id}>{part.name}</li>))}
+                            </ul>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    );
+}
+
+==================== components\ApprovalCenter.tsx ====================
+
+// [path]: components/ApprovalCenter.tsx
+
+'use client';
+
+import { Project } from '@/lib/types';
+import { HelpCircle, ThumbsUp, ThumbsDown, DollarSign, Clock } from 'lucide-react';
+import { useMemo } from 'react';
+import Button from './ui/Button';
+
+interface ApprovalCenterProps {
+  project: Project;
+  onApproveTask: (taskId: string, categoryId: string) => void;
+  // --- NEW: Add a prop to handle the decline action ---
+  onDeclineTask: (taskId: string, categoryId: string) => void;
+}
+
+const ApprovalCenter = ({ project, onApproveTask, onDeclineTask }: ApprovalCenterProps) => {
+  const tasksNeedingApproval = useMemo(() => {
+    return project.categories.flatMap(category =>
+      category.subTasks
+        .filter(task => task.requiresClientApproval && task.status === 'Awaiting Approval')
+        .map(task => ({ ...task, categoryId: category.id }))
+    );
+  }, [project]);
+
+  const invoicesNeedingPayment = useMemo(() => {
+    return project.financials.invoices.filter(invoice => invoice.status === 'Pending' || invoice.status === 'Overdue');
+  }, [project]);
+
+  const hasActions = tasksNeedingApproval.length > 0 || invoicesNeedingPayment.length > 0;
+
+  if (!hasActions) {
+    return null;
+  }
+
+  return (
+    <div className="bg-blue-900/50 border-2 border-blue-500/50 p-6 rounded-lg shadow-large my-12">
+      <div className="flex items-center mb-6">
+        <HelpCircle className="h-8 w-8 text-blue-300 mr-4 flex-shrink-0" />
+        <div>
+          <h2 className="text-2xl font-bold text-white">Approval & Payment Center</h2>
+          <p className="text-blue-200">Your input is required to keep the project moving forward.</p>
+        </div>
+      </div>
+      
+      <div className="space-y-4">
+        {/* Pending Approvals */}
+        {tasksNeedingApproval.map(task => (
+          <div key={task.id} className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+            <h4 className="font-semibold text-white">{task.name}</h4>
+            <div className="flex items-center text-xs text-gray-400 mt-2 space-x-4">
+               <span className="flex items-center"><DollarSign className="w-3 h-3 mr-1.5 text-green-400"/>Est. Cost: R5,500</span>
+               <span className="flex items-center"><Clock className="w-3 h-3 mr-1.5 text-yellow-400"/>Est. Delay: 2 Days</span>
+            </div>
+            <div className="mt-4 flex space-x-2 justify-end">
+                {/* --- NEW: The Decline button now calls the handler prop --- */}
+                <Button size="sm" variant="outline" onClick={() => onDeclineTask(task.id, task.categoryId)}>
+                    <ThumbsDown className="w-4 h-4 mr-2"/>
+                    Decline
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => onApproveTask(task.id, task.categoryId)}>
+                    <ThumbsUp className="w-4 h-4 mr-2"/>
+                    Approve
+                </Button>
+            </div>
+          </div>
+        ))}
+
+        {/* Pending Payments */}
+        {invoicesNeedingPayment.map(invoice => (
+            <div key={invoice.id} className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+                 <h4 className="font-semibold text-white">{invoice.description}</h4>
+                 <div className="flex items-center text-xs text-gray-400 mt-2">
+                    <span>Due: {invoice.dueDate}</span>
+                    {invoice.status === 'Overdue' && <span className="ml-2 text-red-400 font-bold">(Overdue)</span>}
+                 </div>
+                 <div className="mt-4 flex items-center justify-between">
+                    <p className="text-xl font-bold text-green-400">R{invoice.amount.toLocaleString()}</p>
+                    <Button size="sm" variant="primary" onClick={() => alert('Payment action would be handled here.')}>
+                        <DollarSign className="w-4 h-4 mr-2"/>
+                        Pay Now
+                    </Button>
+                 </div>
+            </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default ApprovalCenter;
+
 ==================== components\DecisionsNeededPanel.tsx ====================
+
+// [path]: components/DecisionsNeededPanel.tsx
 
 'use client';
 
@@ -1448,7 +2203,8 @@ interface DecisionsNeededPanelProps {
 const DecisionsNeededPanel = ({ project }: DecisionsNeededPanelProps) => {
   const tasksNeedingApproval = useMemo(() => {
     return project.categories.flatMap(category => 
-      category.subTasks.filter(task => task.requiresClientApproval && !task.completed)
+      // CORRECTED: Changed !task.completed to task.status !== 'Completed'
+      category.subTasks.filter(task => task.requiresClientApproval && task.status !== 'Completed')
     );
   }, [project]);
 
@@ -1813,7 +2569,7 @@ export default MediaGallery;
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-// NEW: Import HelpCircle icon
+// Import HelpCircle icon
 import { ChevronDown, CheckCircle2, Circle, HelpCircle } from 'lucide-react';
 import { Category } from '@/lib/types';
 import ProgressBar from './ui/ProgressBar';
@@ -1824,7 +2580,9 @@ interface ProgressCategoryProps {
 
 const ProgressCategory = ({ category }: ProgressCategoryProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const completedTasks = category.subTasks.filter(task => task.completed).length;
+
+  // A task is "completed" from the client's perspective if its status is 'Completed'.
+  const completedTasks = category.subTasks.filter(task => task.status === 'Completed').length;
   const totalTasks = category.subTasks.length;
   const categoryProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
@@ -1868,18 +2626,18 @@ const ProgressCategory = ({ category }: ProgressCategoryProps) => {
           >
             <ul className="space-y-3 pt-4 border-t border-white/10">
               {category.subTasks.map(task => (
-                <li key={task.id} className={`flex items-center p-2 rounded-md ${task.requiresClientApproval && !task.completed ? 'bg-blue-900/50' : ''}`}>
-                  {task.completed ? (
+                <li key={task.id} className={`flex items-center p-2 rounded-md ${task.requiresClientApproval && task.status !== 'Completed' ? 'bg-blue-900/50' : ''}`}>
+                  {task.status === 'Completed' ? (
                     <CheckCircle2 className="h-5 w-5 text-green-400 mr-3 flex-shrink-0" />
                   ) : (
                     <Circle className="h-5 w-5 text-gray-600 mr-3 flex-shrink-0" />
                   )}
-                  <span className={`text-gray-300 ${task.completed ? 'line-through text-gray-500' : ''}`}>
+                  <span className={`text-gray-300 ${task.status === 'Completed' ? 'line-through text-gray-500' : ''}`}>
                     {task.name}
                   </span>
-                  {/* NEW: Highlight tasks needing approval */}
-                  {task.requiresClientApproval && !task.completed && (
-                    <span className="ml-auto flex items-center text-xs font-semibold text-blue-300 bg-blue-900 px-2 py-1 rounded-full">
+                  {/* Highlight tasks needing approval */}
+                  {task.requiresClientApproval && task.status !== 'Completed' && (
+                       <span className="ml-auto flex items-center text-xs font-semibold text-blue-300 bg-blue-900 px-2 py-1 rounded-full">
                         <HelpCircle className="h-3 w-3 mr-1.5" />
                         Decision Needed
                     </span>
@@ -1898,13 +2656,16 @@ export default ProgressCategory;
 
 ==================== components\ProjectHeader.tsx ====================
 
+// [path]: components/ProjectHeader.tsx
+
 'use client';
 
 import { motion } from 'framer-motion';
 import { Project } from '@/lib/types';
 import ProgressBar from './ui/ProgressBar';
 import Button from './ui/Button';
-import { Edit } from 'lucide-react';
+import { Edit, BookOpen } from 'lucide-react';
+import Link from 'next/link';
 
 interface ProjectHeaderProps {
   project: Project;
@@ -1913,7 +2674,7 @@ interface ProjectHeaderProps {
 }
 
 const ProjectHeader = ({ project, overallProgress, onEdit }: ProjectHeaderProps) => {
-  const { car, customerName, status, holdReason } = project; // Destructure holdReason
+  const { car, customerName, status, holdReason } = project;
   
   const statusClasses = {
     Active: 'bg-green-900/50 text-green-300 border border-green-500/30',
@@ -1942,7 +2703,6 @@ const ProjectHeader = ({ project, overallProgress, onEdit }: ProjectHeaderProps)
             <div className={`text-sm font-medium px-3 py-1 rounded-full inline-block ${statusClasses[status]}`}>
               {status}
             </div>
-            {/* NEW: Conditionally render the hold reason */}
             {status === 'On Hold' && holdReason && (
               <p className="text-xs text-yellow-300 mt-1">{holdReason}</p>
             )}
@@ -1953,9 +2713,17 @@ const ProjectHeader = ({ project, overallProgress, onEdit }: ProjectHeaderProps)
               Edit
             </Button>
           )}
+          {/* --- NEW: Conditionally render the Build Book button --- */}
+          {status === 'Completed' && (
+            <Button href={`/projects/${project.id}/build-book`} variant="primary" size="sm">
+              <BookOpen className="h-4 w-4 mr-2" />
+              View Build Book
+            </Button>
+          )}
         </div>
       </div>
-      <div>
+ 
+       <div>
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium text-gray-300">Overall Progress</span>
           <span className="text-lg font-bold text-red-500">{Math.round(overallProgress)}%</span>
@@ -2030,7 +2798,6 @@ export default Timeline;
 'use client';
 
 import { Project } from '@/lib/types';
-// Corrected: Removed unused 'AlertTriangle'
 import { DollarSign, MessageCircle, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo } from 'react';
@@ -2050,7 +2817,9 @@ const generateActionItems = (projects: Project[]) => {
                 text: `Payment pending for ${project.car.year} ${project.car.make}.`,
                 projectId: project.id,
                 icon: DollarSign,
-                color: 'blue'
+                color: 'blue',
+                // NEW: Add a hash to scroll to the financials panel
+                href: `/dashboard/projects/${project.id}#financials`
             });
         }
 
@@ -2062,7 +2831,9 @@ const generateActionItems = (projects: Project[]) => {
                     text: `New confidential message from ${project.customerName}.`,
                     projectId: project.id,
                     icon: MessageCircle,
-                    color: 'purple'
+                    color: 'purple',
+                    // NEW: Add a hash to scroll to the messages panel
+                    href: `/dashboard/projects/${project.id}#messages`
                 });
             }
         }
@@ -2074,9 +2845,9 @@ const generateActionItems = (projects: Project[]) => {
         text: `Mustang project is 2 weeks overdue on Engine Assembly.`,
         projectId: 'mustang-1969-smith',
         icon: Clock,
-        color: 'red'
+        color: 'red',
+        href: `/dashboard/projects/mustang-1969-smith` // No specific hash for now
     });
-
 
     return items;
 };
@@ -2092,7 +2863,7 @@ const ActionRequiredFeed = ({ projects }: ActionRequiredFeedProps) => {
         <ul className="space-y-4">
           {actionItems.map(item => (
             <li key={item.id}>
-              <Link href={`/dashboard/projects/${item.projectId}`} className="flex items-start p-2 rounded-md hover:bg-gray-700/50 transition-colors">
+              <Link href={item.href} className="flex items-start p-2 rounded-md hover:bg-gray-700/50 transition-colors">
                 <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-${item.color}-900/50 border border-${item.color}-500/30`}>
                     <item.icon className={`h-5 w-5 text-${item.color}-400`} />
                 </div>
@@ -2447,6 +3218,102 @@ const EditProjectModal = ({ isOpen, onClose, onSave, project }: EditProjectModal
 
 export default EditProjectModal;
 
+==================== components\dashboard\ExceptionTiles.tsx ====================
+
+// [path]: components/dashboard/ExceptionTiles.tsx
+
+'use client';
+
+import { Project } from "@/lib/types";
+import { AlertTriangle, Clock, UserX, CalendarClock } from "lucide-react";
+import { useMemo } from "react";
+
+interface ExceptionTilesProps {
+    projects: Project[];
+    // --- NEW: Add the click handler prop ---
+    onTileClick: (title: string, filteredProjects: Project[]) => void;
+}
+
+const ExceptionTile = ({ icon: Icon, title, value, colorClass, onClick }: { icon: React.ElementType, title: string, value: number, colorClass: string, onClick?: () => void }) => {
+    if (value === 0) return null;
+
+    return (
+        <div 
+            onClick={onClick}
+            className={`bg-gray-800 border-l-4 ${colorClass} p-4 rounded-r-lg shadow-soft flex items-center transition-all duration-300 ${onClick ? 'cursor-pointer hover:border-r-4 hover:border-y-4 hover:border-red-500/50 hover:bg-gray-700/50' : ''}`}
+        >
+            <Icon className={`h-8 w-8 mr-4 ${colorClass.replace('border-', 'text-')}`} />
+            <div>
+                <p className="text-2xl font-bold text-white">{value}</p>
+                <p className="text-sm text-gray-400">{title}</p>
+            </div>
+        </div>
+    );
+};
+
+
+const ExceptionTiles = ({ projects, onTileClick }: ExceptionTilesProps) => {
+
+    // --- NEW: This now stores the project lists, not just the lengths ---
+    const exceptions = useMemo(() => {
+        const onHold = projects.filter(p => p.status === 'On Hold');
+        const atRisk = projects.filter(p => {
+            if (!p.promisedDate || p.status === 'Completed') return false;
+            return new Date(p.promisedDate) < new Date();
+        });
+
+        // These don't map to a simple project list, so they won't be clickable for now.
+        const overdueApprovalsCount = projects.reduce((acc, p) => acc + p.categories.reduce((catAcc, cat) => catAcc + cat.subTasks.filter(t => t.requiresClientApproval && t.status === 'Awaiting Approval').length, 0), 0);
+        const urgentUnassignedCount = projects.reduce((acc, p) => acc + p.categories.reduce((catAcc, cat) => catAcc + cat.subTasks.filter(t => t.priority === 'Urgent' && !t.assignedTo).length, 0), 0);
+
+        return { onHold, atRisk, overdueApprovalsCount, urgentUnassignedCount };
+    }, [projects]);
+
+    const hasExceptions = exceptions.onHold.length > 0 || exceptions.atRisk.length > 0 || exceptions.overdueApprovalsCount > 0 || exceptions.urgentUnassignedCount > 0;
+
+    return (
+        <div className="mb-8">
+            <h2 className="text-2xl font-bold text-white mb-4">Exception Radar</h2>
+            {hasExceptions ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <ExceptionTile
+                        icon={Clock}
+                        title="Projects On Hold"
+                        value={exceptions.onHold.length}
+                        colorClass="border-yellow-500"
+                        onClick={() => onTileClick('Projects On Hold', exceptions.onHold)}
+                    />
+                    <ExceptionTile
+                        icon={AlertTriangle}
+                        title="Pending Approvals"
+                        value={exceptions.overdueApprovalsCount}
+                        colorClass="border-blue-500"
+                    />
+                    <ExceptionTile
+                        icon={UserX}
+                        title="Urgent Unassigned"
+                        value={exceptions.urgentUnassignedCount}
+                        colorClass="border-red-500"
+                    />
+                    <ExceptionTile
+                        icon={CalendarClock}
+                        title="Projects At Risk"
+                        value={exceptions.atRisk.length}
+                        colorClass="border-purple-500"
+                        onClick={() => onTileClick('Projects At Risk', exceptions.atRisk)}
+                    />
+                </div>
+            ) : (
+                <div className="text-center py-10 bg-gray-800 rounded-lg border border-white/10">
+                    <p className="text-gray-400">No critical exceptions found. The workshop is running smoothly.</p>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default ExceptionTiles;
+
 ==================== components\dashboard\FinancialsPanel.tsx ====================
 
 'use client';
@@ -2538,29 +3405,42 @@ export default FinancialsPanel;
 
 ==================== components\dashboard\InteractiveProgressCategory.tsx ====================
 
+// [path]: components/dashboard/InteractiveProgressCategory.tsx
+
 'use client';
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-// NEW: Import the HelpCircle icon for our new button
-import { ChevronDown, CheckCircle2, Circle, HelpCircle } from 'lucide-react';
-import { Category, Technician } from '@/lib/types';
+import { ChevronDown, CheckCircle2, Circle, HelpCircle, Clock, Construction, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Category, Technician, SubTask } from '@/lib/types';
 import ProgressBar from '../ui/ProgressBar';
+import Button from '../ui/Button';
 
 interface InteractiveProgressCategoryProps {
   category: Category;
   technicians: Technician[];
   onTaskToggle: (taskId: string, categoryId: string) => void;
   onTaskAssign: (taskId:string, categoryId: string, techId: string) => void;
-  // NEW: Callback for toggling the approval flag
   onToggleApproval: (taskId: string, categoryId: string) => void;
+  onQaStatusChange: (categoryId: string, qaPassed: boolean) => void;
 }
 
-const InteractiveProgressCategory = ({ category, technicians, onTaskToggle, onTaskAssign, onToggleApproval }: InteractiveProgressCategoryProps) => {
+const InteractiveProgressCategory = ({ category, technicians, onTaskToggle, onTaskAssign, onToggleApproval, onQaStatusChange }: InteractiveProgressCategoryProps) => {
   const [isOpen, setIsOpen] = useState(true);
-  const completedTasks = category.subTasks.filter(task => task.completed).length;
+  const completedTasks = category.subTasks.filter(task => task.status === 'Completed').length;
   const totalTasks = category.subTasks.length;
   const categoryProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+  
+  const isReadyForQa = category.requiresQa && completedTasks === totalTasks;
+
+  const getStatusIcon = (status: SubTask['status']) => {
+    switch(status) {
+        case 'Completed': return <CheckCircle2 className="h-5 w-5 text-green-400 mr-3 flex-shrink-0" />;
+        case 'Awaiting Approval': return <Clock className="h-5 w-5 text-yellow-400 mr-3 flex-shrink-0" />;
+        case 'In Progress': return <Construction className="h-5 w-5 text-blue-400 mr-3 flex-shrink-0" />;
+        default: return <Circle className="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" />;
+    }
+  };
 
   return (
     <div className="bg-gray-800 border border-white/10 shadow-soft overflow-hidden rounded-lg">
@@ -2570,7 +3450,16 @@ const InteractiveProgressCategory = ({ category, technicians, onTaskToggle, onTa
       >
         <div className="flex-grow">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="text-lg font-semibold text-white">{category.name}</h3>
+            <h3 className="text-lg font-semibold text-white flex items-center">
+              {category.name}
+              {/* --- THIS SECTION IS CORRECTED --- */}
+              {/* The icon is now wrapped in a span that holds the title attribute */}
+              {category.requiresQa && (
+                <span title="This category requires QA">
+                  <ShieldCheck className="h-4 w-4 text-green-400 ml-2" />
+                </span>
+              )}
+            </h3>
             <span className="text-sm font-medium text-gray-400">{`${completedTasks}/${totalTasks} tasks`}</span>
           </div>
           <ProgressBar progress={categoryProgress} />
@@ -2580,7 +3469,7 @@ const InteractiveProgressCategory = ({ category, technicians, onTaskToggle, onTa
           transition={{ duration: 0.2 }}
           className="ml-4"
         >
-            <ChevronDown className="h-5 w-5 text-gray-400" />
+          <ChevronDown className="h-5 w-5 text-gray-400" />
         </motion.div>
       </header>
       
@@ -2598,51 +3487,64 @@ const InteractiveProgressCategory = ({ category, technicians, onTaskToggle, onTa
             transition={{ duration: 0.3, ease: 'easeOut' }}
             className="px-4 pb-4"
           >
-            <ul className="space-y-1 pt-4 border-t border-gray-700">
-              {category.subTasks.map(task => (
-                <li 
-                  key={task.id} 
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-md hover:bg-gray-700/50"
-                >
-                  <div 
-                    onClick={() => onTaskToggle(task.id, category.id)}
-                    className="flex items-center cursor-pointer mb-2 sm:mb-0 flex-grow"
+            {isReadyForQa ? (
+              <div className="text-center p-4 my-2 border-2 border-dashed border-green-500/50 bg-green-900/30 rounded-lg">
+                <ShieldCheck className="h-10 w-10 text-green-400 mx-auto mb-2" />
+                <h4 className="font-bold text-white">QA Review Pending</h4>
+                <p className="text-sm text-gray-400 mb-4">All tasks are complete. Please review the work.</p>
+                <div className="flex justify-center space-x-2">
+                  <Button size="sm" variant="outline" onClick={() => onQaStatusChange(category.id, false)}>
+                    <ShieldAlert className="w-4 h-4 mr-2" />
+                    Fail QA & Reset Tasks
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => onQaStatusChange(category.id, true)}>
+                    <ShieldCheck className="w-4 h-4 mr-2" />
+                    Pass QA
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <ul className="space-y-1 pt-4 border-t border-gray-700">
+                {category.subTasks.map(task => (
+                  <li 
+                    key={task.id} 
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-md hover:bg-gray-700/50"
                   >
-                    {task.completed ? (
-                      <CheckCircle2 className="h-5 w-5 text-green-400 mr-3 flex-shrink-0" />
-                    ) : (
-                      <Circle className="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" />
-                    )}
-                    <span className={`text-gray-300 ${task.completed ? 'line-through text-gray-500' : ''}`}>
-                      {task.name}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center self-end sm:self-center ml-4 sm:ml-2">
-                      {/* NEW: Button to flag a task for client approval */}
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); onToggleApproval(task.id, category.id); }}
-                        className={`p-1 rounded-full transition-colors mr-2 ${task.requiresClientApproval ? 'bg-blue-900/80 text-blue-300' : 'text-gray-500 hover:bg-gray-700'}`}
-                        title="Request Client Approval"
-                      >
-                        <HelpCircle className="h-4 w-4" />
-                      </button>
+                    <div 
+                      onClick={() => onTaskToggle(task.id, category.id)}
+                      className="flex items-center cursor-pointer mb-2 sm:mb-0 flex-grow"
+                    >
+                      {getStatusIcon(task.status)}
+                      <span className={`text-gray-300 ${task.status === 'Completed' ? 'line-through text-gray-500' : ''}`}>
+                        {task.name}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center self-end sm:self-center ml-4 sm:ml-2">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); onToggleApproval(task.id, category.id); }}
+                          className={`p-1 rounded-full transition-colors mr-2 ${task.requiresClientApproval ? 'bg-blue-900/80 text-blue-300' : 'text-gray-500 hover:bg-gray-700'}`}
+                          title="Request Client Approval"
+                        >
+                          <HelpCircle className="h-4 w-4" />
+                        </button>
 
-                      <select
-                        value={task.assignedTo || ''}
-                        onChange={(e) => onTaskAssign(task.id, category.id, e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-xs rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-red-500 focus:ring-red-500"
-                      >
-                          <option value="">Unassigned</option>
-                          {technicians.map(tech => (
-                              <option key={tech.id} value={tech.id}>{tech.name}</option>
-                          ))}
-                      </select>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                        <select
+                          value={task.assignedTo || ''}
+                          onChange={(e) => onTaskAssign(task.id, category.id, e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-red-500 focus:ring-red-500"
+                        >
+                            <option value="">Unassigned</option>
+                            {technicians.map(tech => (
+                                <option key={tech.id} value={tech.id}>{tech.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </motion.section>
         )}
       </AnimatePresence>
@@ -2652,85 +3554,140 @@ const InteractiveProgressCategory = ({ category, technicians, onTaskToggle, onTa
 
 export default InteractiveProgressCategory;
 
-==================== components\dashboard\InternalNotes.tsx ====================
+==================== components\dashboard\JobCardModal.tsx ====================
+
+// [path]: components/dashboard/JobCardModal.tsx
 
 'use client';
 
-import { useState } from 'react';
-import { InternalNote } from '@/lib/types';
+import { AssignedTask } from '@/lib/types';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Wrench, MessageSquare, Timer, Square, Play } from 'lucide-react';
 import Button from '../ui/Button';
-import { MessageSquarePlus } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
-interface InternalNotesProps {
-  notes: InternalNote[];
-  onAddNote: (noteText: string) => void;
+interface JobCardModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  task: AssignedTask | null;
+  // --- NEW: Props for timer functionality ---
+  activeTimerTaskId: string | null;
+  timerStartTime: number | null;
+  onStartTimer: (task: AssignedTask) => void;
+  onStopTimer: () => void;
 }
 
-const InternalNotes = ({ notes, onAddNote }: InternalNotesProps) => {
-  const [newNote, setNewNote] = useState('');
+const JobCardModal = ({ isOpen, onClose, task, activeTimerTaskId, timerStartTime, onStartTimer, onStopTimer }: JobCardModalProps) => {
+  const [elapsedTime, setElapsedTime] = useState('00:00:00');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newNote.trim()) return;
-    onAddNote(newNote);
-    setNewNote('');
-  };
+  const isTimerActiveForThisTask = task ? activeTimerTaskId === task.id : false;
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | undefined;
+    if (isTimerActiveForThisTask && timerStartTime) {
+      interval = setInterval(() => {
+        const now = Date.now();
+        const diff = now - timerStartTime;
+        const hours = String(Math.floor(diff / 3600000)).padStart(2, '0');
+        const minutes = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+        const seconds = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+        setElapsedTime(`${hours}:${minutes}:${seconds}`);
+      }, 1000);
+    } else {
+        setElapsedTime('00:00:00');
+    }
+    return () => clearInterval(interval);
+  }, [isTimerActiveForThisTask, timerStartTime]);
+
+
+  if (!task) return null;
 
   return (
-    <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft">
-      <h3 className="text-xl font-bold text-white mb-4">Internal Workshop Notes</h3>
-      
-      <form onSubmit={handleSubmit} className="mb-6">
-        <textarea
-          rows={3}
-          value={newNote}
-          onChange={(e) => setNewNote(e.target.value)}
-          className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-          placeholder="Add a new note for the workshop team..."
-        />
-        <Button type="submit" variant="secondary" size="sm" className="mt-2" disabled={!newNote.trim()}>
-          <MessageSquarePlus className="w-4 h-4 mr-2" />
-          Add Note
-        </Button>
-      </form>
-      
-      <div className="space-y-4">
-        {notes.length > 0 ? (
-          notes.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(note => (
-            <div key={note.id} className="p-3 bg-gray-900/50 rounded-md border border-gray-700">
-              <p className="text-sm text-gray-300">{note.note}</p>
-              <p className="text-xs text-gray-500 mt-2">
-                - <span className="font-semibold text-gray-400">{note.author}</span> on {new Date(note.createdAt).toLocaleString()}
-              </p>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+          <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="relative bg-gray-800 border border-white/10 w-full max-w-2xl rounded-lg shadow-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 bg-gray-900/50 flex justify-between items-start">
+              <div>
+                <h2 className="text-2xl font-bold text-white">{task.name}</h2>
+                <p className="text-sm text-red-400">{task.projectName} - ({task.categoryName})</p>
+              </div>
+              <button onClick={onClose} className="text-gray-400 hover:text-white"><X className="h-6 w-6" /></button>
             </div>
-          ))
-        ) : (
-          <p className="text-sm text-gray-500">No internal notes for this project yet.</p>
-        )}
-      </div>
-    </div>
+            
+            <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6">
+              {/* --- MODIFIED: Time Tracking UI is now dynamic --- */}
+              <div className="bg-gray-900/50 p-4 rounded-lg">
+                 <h3 className="font-semibold text-lg text-white mb-4 flex items-center"><Timer className="mr-3 h-5 w-5 text-green-400"/>Time Tracking</h3>
+                 <div className="flex justify-between items-center">
+                    <div>
+                        <p className="text-sm text-gray-400">Estimated Hours: <span className="font-bold text-white">{task.estimateHours || 'N/A'}</span></p>
+                        <p className="text-sm text-gray-400">Actual Hours Logged: <span className="font-bold text-white">{task.actualHours?.toFixed(2) || '0.00'}</span></p>
+                    </div>
+                    {isTimerActiveForThisTask ? (
+                        <div className="text-center">
+                            <p className="text-2xl font-mono font-bold text-green-400">{elapsedTime}</p>
+                            <Button onClick={onStopTimer} variant="secondary" size="sm" className="bg-red-900/80 text-red-300 w-full mt-2">
+                                <Square className="w-4 h-4 mr-2"/>Stop Timer
+                            </Button>
+                        </div>
+                    ) : (
+                        <Button onClick={() => onStartTimer(task)} variant="primary" size="sm" disabled={!!activeTimerTaskId}>
+                           <Play className="w-4 h-4 mr-2"/>Start Timer
+                        </Button>
+                    )}
+                 </div>
+              </div>
+
+              {task.parts && task.parts.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-lg text-white mb-2 flex items-center"><Wrench className="mr-3 h-5 w-5 text-blue-400"/>Parts Required</h3>
+                  <ul className="space-y-2 bg-gray-900/50 p-4 rounded-lg">
+                    {task.parts.map(part => (
+                      <li key={part.id} className="flex justify-between items-center text-sm">
+                        <span className="text-gray-300">{part.name} (x{part.qty})</span>
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${part.status === 'Received' ? 'bg-green-800 text-green-300' : 'bg-yellow-800 text-yellow-300'}`}>{part.status}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {task.internalNotes && task.internalNotes.length > 0 && (
+                 <div>
+                    <h3 className="font-semibold text-lg text-white mb-2 flex items-center"><MessageSquare className="mr-3 h-5 w-5 text-yellow-400"/>Manager&apos;s Notes</h3>
+                     <div className="bg-gray-900/50 p-4 rounded-lg text-sm text-gray-300 space-y-2">
+                        {task.internalNotes.map(note => (<p key={note.id}>- {note.note}</p>))}
+                     </div>
+                 </div>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
-export default InternalNotes;
+export default JobCardModal;
 
 ==================== components\dashboard\MessagingCenter.tsx ====================
+
+// [path]: components/dashboard/MessagingCenter.tsx
 
 'use client';
 
 import { useState } from 'react';
-import { Project, Message } from '@/lib/types';
+import { Project, Message, UserRole } from '@/lib/types'; // Import UserRole
 import Button from '../ui/Button';
-// Corrected: Removed unused 'MessageSquarePlus'
 import { Send, Eye, EyeOff } from 'lucide-react';
 
 interface MessagingCenterProps {
   project: Project;
-  currentUserRole: 'Client' | 'Boss' | 'Manager';
-  onSendMessage: (message: Omit<Message, 'id' | 'createdAt'>) => void;
+  currentUserRole: UserRole; // CORRECTED: Now accepts any UserRole
+  onSendMessage: (message: Omit<Message, 'id' | 'createdAt' | 'authorRole'>) => void;
 }
 
-// Define a specific type for our visibility options
 type MessageVisibility = 'All' | 'BossOnly' | 'StaffOnly';
 
 const MessagingCenter = ({ project, currentUserRole, onSendMessage }: MessagingCenterProps) => {
@@ -2742,7 +3699,7 @@ const MessagingCenter = ({ project, currentUserRole, onSendMessage }: MessagingC
     if (!newMessage.trim()) return;
 
     onSendMessage({
-      author: currentUserRole,
+      author: currentUserRole, // The author is just the role string for now
       text: newMessage,
       visibleTo: visibility,
     });
@@ -2755,6 +3712,7 @@ const MessagingCenter = ({ project, currentUserRole, onSendMessage }: MessagingC
     if (currentUserRole === 'Boss') return true;
     if (currentUserRole === 'Manager') return msg.visibleTo !== 'BossOnly';
     if (currentUserRole === 'Client') return msg.visibleTo === 'All';
+    // Technicians see no messages by default
     return false;
   }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
@@ -2765,8 +3723,8 @@ const MessagingCenter = ({ project, currentUserRole, onSendMessage }: MessagingC
       <div className="h-64 overflow-y-auto mb-4 p-3 bg-gray-900/50 rounded-md border border-gray-700 space-y-4">
         {filteredMessages.length > 0 ? (
           filteredMessages.map(msg => (
-            <div key={msg.id} className={`flex flex-col ${msg.author === 'Client' ? 'items-start' : 'items-end'}`}>
-              <div className={`max-w-xs lg:max-w-md p-3 rounded-lg ${msg.author === 'Client' ? 'bg-gray-700' : 'bg-red-900/80'}`}>
+            <div key={msg.id} className={`flex flex-col ${msg.authorRole === 'Client' ? 'items-start' : 'items-end'}`}>
+              <div className={`max-w-xs lg:max-w-md p-3 rounded-lg ${msg.authorRole === 'Client' ? 'bg-gray-700' : 'bg-red-900/80'}`}>
                 <p className="text-sm text-white">{msg.text}</p>
               </div>
               <p className="text-xs text-gray-500 mt-1 px-1">
@@ -2783,42 +3741,159 @@ const MessagingCenter = ({ project, currentUserRole, onSendMessage }: MessagingC
           </div>
         )}
       </div>
-
-      <form onSubmit={handleSubmit}>
-        <textarea
-          rows={3}
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-          placeholder={currentUserRole === 'Client' ? "Have a question? Send a message..." : "Type your reply or internal note..."}
-        />
-        <div className="flex justify-between items-center mt-2">
-            <div className="flex items-center space-x-2 text-sm">
-                {currentUserRole === 'Client' && (
-                    // Corrected: Cast to our specific MessageVisibility type
-                    <select value={visibility} onChange={e => setVisibility(e.target.value as MessageVisibility)} className="text-xs rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-red-500 focus:ring-red-500">
-                        <option value="All">To Boss & Manager</option>
-                        <option value="BossOnly">To Boss Only (Confidential)</option>
-                    </select>
-                )}
-                {currentUserRole !== 'Client' && (
-                    // Corrected: Cast to our specific MessageVisibility type
-                    <select value={visibility} onChange={e => setVisibility(e.target.value as MessageVisibility)} className="text-xs rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-red-500 focus:ring-red-500">
-                        <option value="All">Reply to Client</option>
-                        <option value="StaffOnly">Internal Note (Staff Only)</option>
-                    </select>
-                )}
-            </div>
-            <Button type="submit" variant="primary" size="sm" disabled={!newMessage.trim()}>
-                Send <Send className="w-4 h-4 ml-2" />
-            </Button>
-        </div>
-      </form>
+      
+      {/* Technicians do not get a message box */}
+      {currentUserRole !== 'Technician' && (
+        <form onSubmit={handleSubmit}>
+          <textarea
+            rows={3}
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+            placeholder={currentUserRole === 'Client' ? "Have a question? Send a message..." : "Type your reply or internal note..."}
+          />
+          <div className="flex justify-between items-center mt-2">
+              <div className="flex items-center space-x-2 text-sm">
+                  {currentUserRole === 'Client' && (
+                      <select value={visibility} onChange={e => setVisibility(e.target.value as MessageVisibility)} className="text-xs rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-red-500 focus:ring-red-500">
+                          <option value="All">To Boss & Manager</option>
+                          <option value="BossOnly">To Boss Only (Confidential)</option>
+                      </select>
+                  )}
+                  {currentUserRole !== 'Client' && (
+                      <select value={visibility} onChange={e => setVisibility(e.target.value as MessageVisibility)} className="text-xs rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-red-500 focus:ring-red-500">
+                          <option value="All">Reply to Client</option>
+                          <option value="StaffOnly">Internal Note (Staff Only)</option>
+                      </select>
+                  )}
+              </div>
+              <Button type="submit" variant="primary" size="sm" disabled={!newMessage.trim()}>
+                  Send <Send className="w-4 h-4 ml-2" />
+              </Button>
+          </div>
+        </form>
+      )}
     </div>
   );
 };
 
 export default MessagingCenter;
+
+==================== components\dashboard\PartsBoard.tsx ====================
+
+// [path]: components/dashboard/PartsBoard.tsx
+
+'use client';
+
+import { Project, Part } from '@/lib/types';
+import { useMemo } from 'react';
+import Link from 'next/link';
+
+interface PartWithContext extends Part {
+  projectName: string;
+  projectId: string;
+  taskName: string;
+}
+
+interface PartsBoardProps {
+  allProjects: Project[];
+}
+
+const PartsBoard = ({ allProjects }: PartsBoardProps) => {
+  const allParts = useMemo(() => {
+    const partsList: PartWithContext[] = [];
+    const activeProjects = allProjects.filter(p => p.status === 'Active' || p.status === 'On Hold');
+
+    activeProjects.forEach(project => {
+      project.categories.forEach(category => {
+        category.subTasks.forEach(task => {
+          if (task.parts && task.parts.length > 0) {
+            task.parts.forEach(part => {
+              partsList.push({
+                ...part,
+                projectName: `${project.car.year} ${project.car.make} ${project.car.model}`,
+                projectId: project.id,
+                taskName: task.name,
+              });
+            });
+          }
+        });
+      });
+    });
+    return partsList;
+  }, [allProjects]);
+
+  const getStatusClasses = (status: Part['status']) => {
+    switch (status) {
+      case 'Received':
+        return 'bg-green-900/50 text-green-300 border border-green-500/30';
+      case 'Ordered':
+        return 'bg-blue-900/50 text-blue-300 border border-blue-500/30';
+      case 'Cancelled':
+        return 'bg-red-900/50 text-red-300 border border-red-500/30';
+      default: // Needed
+        return 'bg-yellow-900/50 text-yellow-300 border border-yellow-500/30';
+    }
+  };
+
+  // In a real app, this would trigger a backend update.
+  const handleStatusChange = (partId: string, currentStatus: Part['status']) => {
+    const statusCycle: Part['status'][] = ['Needed', 'Ordered', 'Received', 'Cancelled'];
+    const currentIndex = statusCycle.indexOf(currentStatus);
+    const nextIndex = (currentIndex + 1) % statusCycle.length;
+    const newStatus = statusCycle[nextIndex];
+    alert(`Changing status for part ${partId} from ${currentStatus} to ${newStatus}.\n(This would be a database update).`);
+  };
+
+  return (
+    <div className="bg-gray-800 border border-white/10 rounded-lg shadow-soft overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-700">
+          <thead className="bg-gray-900/50">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Part Name</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Project</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Quantity</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+            </tr>
+          </thead>
+          <tbody className="bg-gray-800 divide-y divide-gray-700">
+            {allParts.map(part => (
+              <tr key={part.id} className="hover:bg-gray-700/50 transition-colors">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-white">{part.name}</div>
+                  <div className="text-xs text-gray-500">{part.partNumber || 'N/A'}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <Link href={`/dashboard/projects/${part.projectId}`} className="text-sm text-red-500 hover:underline">
+                    {part.projectName}
+                  </Link>
+                  <div className="text-xs text-gray-500">Task: {part.taskName}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{part.qty}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <button
+                    onClick={() => handleStatusChange(part.id, part.status)}
+                    className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full cursor-pointer ${getStatusClasses(part.status)}`}
+                  >
+                    {part.status}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {allParts.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-gray-500">No parts currently required for active projects.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default PartsBoard;
 
 ==================== components\dashboard\PhotoHighlights.tsx ====================
 
@@ -2993,44 +4068,164 @@ export default ProjectSummaryCard;
 
 ==================== components\dashboard\QuickStats.tsx ====================
 
+// [path]: components/dashboard/QuickStats.tsx
+
 import { Car, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { Project } from '@/lib/types';
-import StatCard from './StatCard'; // Import the new reusable component
+import StatCard from './StatCard';
+import { useMemo } from 'react';
 
 interface QuickStatsProps {
   projects: Project[];
+  // --- NEW: Prop to handle clicks ---
+  onCardClick: (title: string, filteredProjects: Project[]) => void;
 }
 
-const QuickStats = ({ projects }: QuickStatsProps) => {
-  const activeProjects = projects.filter(p => p.status === 'Active').length;
-  const onHoldProjects = projects.filter(p => p.status === 'On Hold').length;
-  
-  // Dummy data for other stats
-  const completedThisMonth = 1;
-  const upcomingDeliveries = 2;
+const QuickStats = ({ projects, onCardClick }: QuickStatsProps) => {
+
+  // --- NEW: Memoized lists of projects for each stat ---
+  const projectLists = useMemo(() => {
+    const active = projects.filter(p => p.status === 'Active');
+    const onHold = projects.filter(p => p.status === 'On Hold');
+    
+    // NOTE: These are simplified for the demo. A real app would have more robust date logic.
+    const completedThisMonth = projects.filter(p => p.status === 'Completed');
+    const upcomingDeliveries = projects.filter(p => p.promisedDate && new Date(p.promisedDate) > new Date() && p.status !== 'Completed');
+
+    return { active, onHold, completedThisMonth, upcomingDeliveries };
+  }, [projects]);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      <StatCard icon={Car} title="Active Projects" value={activeProjects} colorClass="bg-red-600" />
-      <StatCard icon={CheckCircle} title="Completed This Month" value={completedThisMonth} colorClass="bg-green-600" />
-      <StatCard icon={Clock} title="Upcoming Deliveries" value={upcomingDeliveries} colorClass="bg-blue-600" />
-      <StatCard icon={AlertTriangle} title="Projects On Hold" value={onHoldProjects} colorClass="bg-yellow-600" />
+      <StatCard 
+        icon={Car} 
+        title="Active Projects" 
+        value={projectLists.active.length} 
+        colorClass="bg-red-600"
+        onClick={() => onCardClick('Active Projects', projectLists.active)}
+      />
+      <StatCard 
+        icon={CheckCircle} 
+        title="Completed This Month" 
+        value={projectLists.completedThisMonth.length} 
+        colorClass="bg-green-600" 
+        onClick={() => onCardClick('Completed This Month', projectLists.completedThisMonth)}
+      />
+      <StatCard 
+        icon={Clock} 
+        title="Upcoming Deliveries" 
+        value={projectLists.upcomingDeliveries.length} 
+        colorClass="bg-blue-600" 
+        onClick={() => onCardClick('Upcoming Deliveries', projectLists.upcomingDeliveries)}
+      />
+      <StatCard 
+        icon={AlertTriangle} 
+        title="Projects On Hold" 
+        value={projectLists.onHold.length} 
+        colorClass="bg-yellow-600"
+        onClick={() => onCardClick('Projects On Hold', projectLists.onHold)}
+      />
     </div>
   );
 };
 
 export default QuickStats;
 
+==================== components\dashboard\ScheduleView.tsx ====================
+
+// [path]: components/dashboard/ScheduleView.tsx
+
+'use client';
+
+import { Project } from '@/lib/types';
+import { mockTechnicians } from '@/lib/mock-data';
+import { useMemo } from 'react';
+import { differenceInDays, format, addDays } from 'date-fns';
+
+const ScheduleView = ({ allProjects }: { allProjects: Project[] }) => {
+    // --- CORRECTED: Wrapped date calculations in useMemo to prevent re-renders ---
+    const { scheduleStartDate, scheduleEndDate, totalDays } = useMemo(() => {
+        const startDate = new Date('2025-08-18');
+        const endDate = addDays(startDate, 30);
+        const days = differenceInDays(endDate, startDate);
+        return { scheduleStartDate: startDate, scheduleEndDate: endDate, totalDays: days };
+    }, []);
+
+    const tasksWithDates = useMemo(() => {
+        return allProjects.flatMap(p => 
+            p.categories.flatMap(c => 
+                c.subTasks
+                    .filter(t => t.startDate && t.dueDate && t.assignedTo)
+                    .map(t => ({
+                        ...t,
+                        project: p,
+                        startOffset: differenceInDays(new Date(t.startDate!), scheduleStartDate),
+                        duration: differenceInDays(new Date(t.dueDate!), new Date(t.startDate!)) + 1,
+                    }))
+            )
+        );
+    }, [allProjects, scheduleStartDate]);
+
+    return (
+        <div className="bg-gray-800 border border-white/10 rounded-lg p-4 overflow-x-auto">
+            <div className="grid gap-2 min-w-[1200px]" style={{ gridTemplateColumns: `150px repeat(${totalDays}, minmax(40px, 1fr))` }}>
+                {/* Header Row: Dates */}
+                <div className="sticky left-0 bg-gray-900/50 p-2 rounded text-xs font-bold text-white z-10">Technician</div>
+                {Array.from({ length: totalDays }).map((_, i) => (
+                    <div key={i} className="text-center text-xs text-gray-400 border-l border-gray-700 pt-2">
+                        <p>{format(addDays(scheduleStartDate, i), 'dd')}</p>
+                        <p className="font-bold">{format(addDays(scheduleStartDate, i), 'EEE')}</p>
+                    </div>
+                ))}
+
+                {/* Technician Rows */}
+                {mockTechnicians.map(tech => (
+                    <div key={tech.id} className="contents">
+                        <div className="sticky left-0 bg-gray-900/50 p-2 rounded text-sm font-semibold text-white z-10 flex items-center">{tech.name}</div>
+                        {Array.from({ length: totalDays }).map((_, i) => (
+                            <div key={i} className="border-l border-t border-gray-700 h-12"></div>
+                        ))}
+                    </div>
+                ))}
+
+                {/* Task Bars Overlay */}
+                {tasksWithDates.map(task => {
+                    const techIndex = mockTechnicians.findIndex(t => t.id === task.assignedTo);
+                    if (techIndex === -1 || task.startOffset < 0 || task.startOffset >= totalDays) return null;
+
+                    return (
+                        <div
+                            key={task.id}
+                            className="bg-red-600/70 hover:bg-red-500 border border-red-400 rounded p-1 text-white text-xs overflow-hidden cursor-pointer flex items-center"
+                            style={{
+                                gridRow: techIndex + 2,
+                                gridColumn: `${task.startOffset + 2} / span ${task.duration}`,
+                            }}
+                            title={`${task.name} (${task.project.car.model})`}
+                        >
+                            <p className="font-bold truncate px-1">{task.name}</p>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+export default ScheduleView;
+
 ==================== components\dashboard\Sidebar.tsx ====================
+
+// [path]: components/dashboard/Sidebar.tsx
 
 'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-// Added LayoutGrid for our new page icon
-import { Home, Car, Camera, List, Users, Settings, X, LayoutGrid } from 'lucide-react';
+import { Home, Car, Camera, List, Users, Settings, X, LayoutGrid, LogOut, Wrench, DollarSign, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/app/AuthContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -3039,17 +4234,23 @@ interface SidebarProps {
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const pathname = usePathname();
-  
-  const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    // NEW: Link to the Workshop Ops Deck
-    { name: 'Ops Deck', href: '/dashboard/workshop', icon: LayoutGrid },
-    { name: 'Projects', href: '/dashboard/projects', icon: Car },
-    { name: 'Media', href: '/dashboard/media', icon: Camera },
-    { name: 'Timeline', href: '/dashboard/timeline', icon: List },
-    { name: 'Customers', href: '/dashboard/customers', icon: Users },
-    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  const { user, logout } = useAuth();
+
+  const allNavItems = [
+    { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['Boss', 'Manager'] },
+    { name: 'My Tasks', href: '/dashboard/my-tasks', icon: LayoutGrid, roles: ['Technician'] },
+    { name: 'Financials', href: '/dashboard/financials', icon: DollarSign, roles: ['Boss'] },
+    { name: 'Projects', href: '/dashboard/projects', icon: Car, roles: ['Boss', 'Manager'] },
+    { name: 'Schedule', href: '/dashboard/schedule', icon: Calendar, roles: ['Boss', 'Manager'] },
+    { name: 'Ops Deck', href: '/dashboard/workshop', icon: LayoutGrid, roles: ['Boss', 'Manager'] },
+    { name: 'Parts Hub', href: '/dashboard/parts', icon: Wrench, roles: ['Boss', 'Manager'] },
+    { name: 'Media', href: '/dashboard/media', icon: Camera, roles: ['Boss', 'Manager'] },
+    { name: 'Timeline', href: '/dashboard/timeline', icon: List, roles: ['Boss', 'Manager'] },
+    { name: 'Customers', href: '/dashboard/customers', icon: Users, roles: ['Boss', 'Manager'] },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings, roles: ['Boss'] },
   ];
+
+  const navItems = allNavItems.filter(item => user?.role && item.roles.includes(user.role));
 
   const SidebarContent = () => (
     <div className="w-64 bg-gray-900 text-gray-300 flex flex-col h-full border-r border-white/10">
@@ -3088,7 +4289,13 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         </ul>
       </nav>
       <div className="p-4 border-t border-white/10">
-        <p className="text-xs text-gray-500">© 2025 All American Muscle</p>
+        <button
+            onClick={logout}
+            className="flex w-full items-center px-4 py-3 my-1 rounded-md text-gray-400 hover:bg-red-900/50 hover:text-red-300 transition-colors"
+        >
+            <LogOut className="h-5 w-5 mr-3" />
+            <span className="font-medium">Logout</span>
+        </button>
       </div>
     </div>
   );
@@ -3098,25 +4305,11 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       <div className="hidden md:flex md:flex-shrink-0">
         <SidebarContent />
       </div>
-
       <AnimatePresence>
         {isOpen && (
             <>
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="fixed inset-0 z-30 bg-black/50 md:hidden"
-                    onClick={onClose}
-                />
-                <motion.div
-                    initial={{ x: '-100%' }}
-                    animate={{ x: 0 }}
-                    exit={{ x: '-100%' }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                    className="fixed top-0 left-0 h-full z-40 md:hidden"
-                >
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={onClose} />
+                <motion.div initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} className="fixed top-0 left-0 h-full z-40 md:hidden">
                     <SidebarContent />
                 </motion.div>
             </>
@@ -3130,6 +4323,8 @@ export default Sidebar;
 
 ==================== components\dashboard\StatCard.tsx ====================
 
+// [path]: components/dashboard/StatCard.tsx
+
 import React from 'react';
 
 interface StatCardProps {
@@ -3137,10 +4332,19 @@ interface StatCardProps {
   title: string;
   value: number | string;
   colorClass: string;
+  // --- NEW: Add an optional onClick handler ---
+  onClick?: () => void;
 }
 
-const StatCard = ({ icon: Icon, title, value, colorClass }: StatCardProps) => (
-  <div className="bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft flex items-center">
+const StatCard = ({ icon: Icon, title, value, colorClass, onClick }: StatCardProps) => (
+  // --- NEW: Added onClick, cursor-pointer, and transition styles ---
+  <div 
+    onClick={onClick}
+    className={`bg-gray-800 border border-white/10 p-6 rounded-lg shadow-soft flex items-center transition-all duration-300 ${onClick ? 'cursor-pointer hover:border-red-500/50 hover:bg-gray-700/50' : ''}`}
+    role={onClick ? 'button' : undefined}
+    tabIndex={onClick ? 0 : undefined}
+    onKeyDown={onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && onClick() : undefined}
+  >
     <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${colorClass}`}>
       <Icon className="h-6 w-6 text-white" />
     </div>
@@ -3153,7 +4357,91 @@ const StatCard = ({ icon: Icon, title, value, colorClass }: StatCardProps) => (
 
 export default StatCard;
 
+==================== components\dashboard\StatDetailModal.tsx ====================
+
+// [path]: components/dashboard/StatDetailModal.tsx
+
+'use client';
+
+import { Project } from '@/lib/types';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
+import Link from 'next/link';
+
+interface StatDetailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  projects: Project[];
+}
+
+const StatDetailModal = ({ isOpen, onClose, title, projects }: StatDetailModalProps) => {
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            className="relative bg-gray-800 border border-white/10 w-full max-w-3xl rounded-lg shadow-xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 bg-gray-900/50 flex justify-between items-center border-b border-white/10">
+              <h2 className="text-xl font-bold text-white">{title}</h2>
+              <button onClick={onClose} className="text-gray-400 hover:text-white">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="p-2 max-h-[60vh] overflow-y-auto">
+              {projects.length > 0 ? (
+                <table className="min-w-full divide-y divide-gray-700">
+                  <thead className="bg-gray-800">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">Vehicle</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">Customer</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">Details</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-gray-800 divide-y divide-gray-700">
+                    {projects.map(p => (
+                      <tr key={p.id} className="hover:bg-gray-700/50">
+                        <td className="px-4 py-3 text-sm font-medium text-white">{`${p.car.year} ${p.car.make} ${p.car.model}`}</td>
+                        <td className="px-4 py-3 text-sm text-gray-300">{p.customerName}</td>
+                        <td className="px-4 py-3 text-sm text-yellow-300">{p.holdReason || p.promisedDate || p.status}</td>
+                        <td className="px-4 py-3 text-right">
+                          <Link href={`/dashboard/projects/${p.id}`} onClick={onClose} className="text-red-500 hover:underline text-sm font-semibold">
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-gray-500 text-center py-10">No projects match this criteria.</p>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+export default StatDetailModal;
+
 ==================== components\dashboard\WorkshopKanban.tsx ====================
+
+// [path]: components/dashboard/WorkshopKanban.tsx
 
 'use client';
 
@@ -3161,7 +4449,7 @@ import { useMemo } from 'react';
 import { Project, SubTask } from '@/lib/types';
 import { mockTechnicians } from '@/lib/mock-data';
 import Link from 'next/link';
-import { CheckCircle2, Circle } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Construction } from 'lucide-react';
 
 interface KanbanTask extends SubTask {
   projectName: string;
@@ -3178,7 +4466,6 @@ const WorkshopKanban = ({ allProjects }: WorkshopKanbanProps) => {
   const columns = useMemo(() => {
     const activeProjects = allProjects.filter(p => p.status === 'Active');
     
-    // Flatten all subtasks from active projects into a single array
     const allTasks: KanbanTask[] = activeProjects.flatMap(project =>
       project.categories.flatMap(category =>
         category.subTasks.map(task => ({
@@ -3190,7 +4477,6 @@ const WorkshopKanban = ({ allProjects }: WorkshopKanbanProps) => {
       )
     );
 
-    // Group tasks by technician ID
     const tasksByTechnician = allTasks.reduce((acc, task) => {
       const techId = task.assignedTo || 'unassigned';
       if (!acc[techId]) {
@@ -3200,7 +4486,6 @@ const WorkshopKanban = ({ allProjects }: WorkshopKanbanProps) => {
       return acc;
     }, {} as Record<string, KanbanTask[]>);
 
-    // Create the column structure
     const techColumns = mockTechnicians.map(tech => ({
       id: tech.id,
       title: tech.name,
@@ -3214,6 +4499,32 @@ const WorkshopKanban = ({ allProjects }: WorkshopKanbanProps) => {
 
   }, [allProjects]);
 
+  // CORRECTED: This function now returns the correct icon based on the task's 'status'.
+  const getStatusIndicator = (status: SubTask['status']) => {
+    switch(status) {
+        case 'Completed': return { 
+            Icon: CheckCircle2, 
+            text: 'Completed', 
+            color: 'text-green-500' 
+        };
+        case 'Awaiting Approval': return { 
+            Icon: Clock, 
+            text: 'Awaiting Approval', 
+            color: 'text-yellow-500' 
+        };
+        case 'In Progress': return { 
+            Icon: Construction, 
+            text: 'In Progress', 
+            color: 'text-blue-500' 
+        };
+        default: return { 
+            Icon: Circle, 
+            text: 'Pending', 
+            color: 'text-gray-600' 
+        };
+    }
+  };
+
   return (
     <div className="flex space-x-4 overflow-x-auto pb-4">
       {columns.map(column => (
@@ -3222,27 +4533,26 @@ const WorkshopKanban = ({ allProjects }: WorkshopKanbanProps) => {
             <h3 className="font-bold text-white">{column.title} <span className="text-sm font-normal text-gray-500">{column.tasks.length}</span></h3>
           </div>
           <div className="p-2 space-y-2 h-[calc(100vh-250px)] overflow-y-auto">
-            {column.tasks.length > 0 ? column.tasks.map(task => (
-              <div key={task.id} className="bg-gray-800 p-3 rounded-md border border-gray-700 shadow-soft">
-                <p className="text-sm font-medium text-gray-200 mb-2">{task.name}</p>
-                <div className="text-xs text-gray-400">
-                  <p>{task.categoryName}</p>
-                  <Link href={`/dashboard/projects/${task.projectId}`} className="text-red-500 hover:underline">
-                    {task.projectName}
-                  </Link>
-                </div>
-                <div className="mt-3 pt-2 border-t border-gray-700 flex items-center">
-                    {task.completed ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
-                    ) : (
-                        <Circle className="h-4 w-4 text-gray-600 mr-2" />
-                    )}
-                    <span className={`text-xs font-semibold ${task.completed ? 'text-green-500' : 'text-gray-500'}`}>
-                        {task.completed ? 'Completed' : 'Pending'}
+            {column.tasks.length > 0 ? column.tasks.map(task => {
+              const { Icon, text, color } = getStatusIndicator(task.status);
+              return (
+                <div key={task.id} className="bg-gray-800 p-3 rounded-md border border-gray-700 shadow-soft">
+                  <p className="text-sm font-medium text-gray-200 mb-2">{task.name}</p>
+                  <div className="text-xs text-gray-400">
+                    <p>{task.categoryName}</p>
+                    <Link href={`/dashboard/projects/${task.projectId}`} className="text-red-500 hover:underline">
+                      {task.projectName}
+                    </Link>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-gray-700 flex items-center">
+                    <Icon className={`h-4 w-4 mr-2 ${color}`} />
+                    <span className={`text-xs font-semibold ${color}`}>
+                      {text}
                     </span>
+                  </div>
                 </div>
-              </div>
-            )) : (
+              );
+            }) : (
                 <div className="flex items-center justify-center h-full p-4">
                     <p className="text-sm text-gray-600">No tasks assigned.</p>
                 </div>
@@ -3470,55 +4780,190 @@ export default ToggleSwitch;
 
 ==================== lib\data-service.ts ====================
 
+// [path]: lib/data-service.ts
+
 import { mockProjects } from './mock-data';
-import { Project, Media } from './types';
+import { Project, SubTask, Category } from './types';
+import { fullRestorationTemplate, majorServiceTemplate } from './project-templates';
 
-const STORAGE_KEY = 'AAM_PROJECTS';
+const PROJECTS_STORAGE_KEY = 'AAM_PROJECTS';
+const TEMPLATES_STORAGE_KEY = 'AAM_TEMPLATES';
 
-// This function now directly returns the static mock data.
-export const getProjects = (): Project[] => {
-  return mockProjects;
+
+// =======================================================================
+// PROJECT DATA FUNCTIONS
+// =======================================================================
+
+const getProjectsFromStorage = (): Project[] => {
+  if (typeof window === 'undefined') return mockProjects;
+  try {
+    const storedProjects = localStorage.getItem(PROJECTS_STORAGE_KEY);
+    if (!storedProjects) {
+      localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(mockProjects));
+      return mockProjects;
+    }
+    return JSON.parse(storedProjects);
+  } catch (error) {
+    console.error("Could not access localStorage for projects.", error);
+    return mockProjects;
+  }
 };
 
-// This function finds a single project from the static mock data.
+const saveProjectsToStorage = (projects: Project[]) => {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
+    } catch (error) {
+      console.error("Could not save projects to localStorage.", error);
+    }
+  }
+};
+
+// =======================================================================
+// TEMPLATE DATA FUNCTIONS
+// =======================================================================
+
+export const getTemplates = (): Category[][] => {
+  if (typeof window === 'undefined') return [fullRestorationTemplate, majorServiceTemplate];
+  try {
+    const storedTemplates = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+    if (!storedTemplates) {
+      const defaultTemplates = [fullRestorationTemplate, majorServiceTemplate];
+      // A simple way to give templates a name for the UI
+      defaultTemplates[0][0].name = "Full Restoration - Body & Paint";
+      defaultTemplates[1][0].name = "Major Service - Engine Service";
+      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(defaultTemplates));
+      return defaultTemplates;
+    }
+    return JSON.parse(storedTemplates);
+  } catch (error) {
+    console.error("Could not access localStorage for templates.", error);
+    return [fullRestorationTemplate, majorServiceTemplate];
+  }
+};
+
+export const saveTemplates = (templates: Category[][]) => {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
+    } catch (error) {
+      console.error("Could not save templates to localStorage.", error);
+    }
+  }
+};
+
+// =======================================================================
+// EXPORTED API
+// =======================================================================
+
+export const getProjects = (): Project[] => getProjectsFromStorage();
+
 export const getProjectById = (id: string): Project | undefined => {
-  const projects = getProjects();
+  const projects = getProjectsFromStorage();
   return projects.find(p => p.id === id);
 };
 
-// --- ADD THIS FUNCTION BACK ---
-// This function gets the most recent media items from all projects.
-export const getRecentMedia = (limit: number = 4): Media[] => {
-    const projects = getProjects();
-    // In a real app, you'd sort by an upload date. For now, we'll just take the first few.
-    return projects
-        .flatMap(p => p.media)
-        .slice(0, limit);
+export const updateProject = (projectId: string, updatedData: Partial<Project>): Project | undefined => {
+  const projects = getProjectsFromStorage();
+  const projectIndex = projects.findIndex(p => p.id === projectId);
+  if (projectIndex !== -1) {
+    projects[projectIndex] = { ...projects[projectIndex], ...updatedData };
+    saveProjectsToStorage(projects);
+    return projects[projectIndex];
+  }
 };
 
-// NOTE: The functions below are for simulating front-end interaction.
-// They do NOT permanently save data.
 export const addProject = (newProjectData: Omit<Project, 'id'>): Project => {
-  console.log("Simulating adding project:", newProjectData);
-  return {
+  const projects = getProjectsFromStorage();
+  const newProject: Project = {
     ...newProjectData,
-    id: `new-project-${Date.now()}`
+    id: `${newProjectData.car.make.toLowerCase().replace(/\s/g, '-')}-${newProjectData.car.year}-${Date.now()}`
   };
+  const updatedProjects = [...projects, newProject];
+  saveProjectsToStorage(updatedProjects);
+  return newProject;
 };
 
-export const updateProject = (updatedProject: Project): void => {
-    console.log("Simulating updating project:", updatedProject);
-};
-
+// --- CORRECTED: Added the missing deleteProject function back ---
 export const deleteProject = (projectId: string): void => {
-    console.log("Simulating deleting project:", projectId);
+  const projects = getProjectsFromStorage();
+  const updatedProjects = projects.filter(p => p.id !== projectId);
+  saveProjectsToStorage(updatedProjects);
+};
+
+// --- CORRECTED: Added the missing logTaskTime function back ---
+export const logTaskTime = (projectId: string, categoryId: string, taskId: string, hoursToAdd: number): Project | undefined => {
+    const projects = getProjectsFromStorage();
+    const projectIndex = projects.findIndex(p => p.id === projectId);
+    if (projectIndex === -1) return undefined;
+    const category = projects[projectIndex].categories.find(c => c.id === categoryId);
+    const task = category?.subTasks.find(t => t.id === taskId);
+    if (task) {
+        task.actualHours = (task.actualHours || 0) + hoursToAdd;
+        saveProjectsToStorage(projects);
+        return projects[projectIndex];
+    }
+    return undefined;
+};
+
+export const updateTaskStatus = (projectId: string, categoryId: string, taskId: string, newStatus: SubTask['status']): Project | undefined => {
+    const projects = getProjectsFromStorage();
+    const projectIndex = projects.findIndex(p => p.id === projectId);
+    if (projectIndex === -1) return undefined;
+    const category = projects[projectIndex].categories.find(c => c.id === categoryId);
+    const task = category?.subTasks.find(t => t.id === taskId);
+    if (task) {
+        task.status = newStatus;
+        saveProjectsToStorage(projects);
+        return projects[projectIndex];
+    }
+    return undefined;
+};
+
+export const declineTaskApproval = (projectId: string, categoryId: string, taskId: string): Project | undefined => {
+    const projects = getProjectsFromStorage();
+    const projectIndex = projects.findIndex(p => p.id === projectId);
+    if (projectIndex === -1) return undefined;
+    const category = projects[projectIndex].categories.find(c => c.id === categoryId);
+    const task = category?.subTasks.find(t => t.id === taskId);
+    if (task) {
+        task.status = 'Pending';
+        task.requiresClientApproval = false;
+        saveProjectsToStorage(projects);
+        return projects[projectIndex];
+    }
+    return undefined;
+};
+
+export const updateCategoryQaStatus = (projectId: string, categoryId: string, qaPassed: boolean): Project | undefined => {
+    const projects = getProjectsFromStorage();
+    const projectIndex = projects.findIndex(p => p.id === projectId);
+    if (projectIndex === -1) return undefined;
+    const category = projects[projectIndex].categories.find(c => c.id === categoryId);
+    if (category) {
+        if (!qaPassed) {
+            category.subTasks.forEach(task => { task.status = 'Pending'; });
+        }
+        saveProjectsToStorage(projects);
+        return projects[projectIndex];
+    }
+    return undefined;
 };
 
 ==================== lib\mock-data.ts ====================
 
-import { Project, Technician } from './types';
+// [path]: lib/mock-data.ts
 
-// New: A list of mock technicians for task delegation
+import { Project, Technician, User } from './types';
+
+export const mockUsers: User[] = [
+  { id: 'user-boss', name: 'John "Boss" Doe', role: 'Boss' },
+  { id: 'user-manager', name: 'Sarah Manager', role: 'Manager' },
+  { id: 'user-tech-1', name: 'Mike L.', role: 'Technician' },
+  { id: 'user-tech-2', name: 'Chris P.', role: 'Technician' },
+  { id: 'user-client-1', name: 'John Smith', role: 'Client' },
+];
+
 export const mockTechnicians: Technician[] = [
   { id: 'tech-1', name: 'Mike L.' },
   { id: 'tech-2', name: 'Chris P.' },
@@ -3529,136 +4974,91 @@ export const mockProjects: Project[] = [
   {
     id: 'mustang-1969-smith',
     customerName: 'John Smith',
-    car: { make: 'Ford', model: 'Mustang Mach 1', year: 1969 },
+    car: { make: 'Ford', model: 'Mustang Mach 1', year: 1969, vin: '9R02R154875', color: 'Wimbledon White', mileageIn: 85450 },
     status: 'Active',
-    holdReason: '',
-    createdAt: '2025-08-05',
-    categories: [
-      { id: 'bp', name: 'Body & Paint', weight: 25, subTasks: [
-        { id: 'bp1', name: 'Media Blasting', completed: true, assignedTo: 'tech-1' },
-        { id: 'bp2', name: 'Rust Repair & Panel Replacement', completed: true, assignedTo: 'tech-1' },
-        { id: 'bp3', name: 'Body Filler & Sanding', completed: true, assignedTo: 'tech-2' },
-        { id: 'bp4', name: 'Primer Application', completed: false, assignedTo: 'tech-2' },
-        { id: 'bp5', name: 'Final Paint (Wimbledon White)', completed: false },
-      ]},
-      { id: 'cs', name: 'Chassis & Suspension', weight: 20, subTasks: [
-        { id: 'cs1', name: 'Frame Inspection & Repair', completed: true, assignedTo: 'tech-3' },
-        { id: 'cs2', name: 'Front Suspension Rebuild', completed: true, assignedTo: 'tech-3' },
-        { id: 'cs3', name: 'Rear Leaf Spring Replacement', completed: false },
-      ]},
-      { id: 'en', name: 'Engine & Drivetrain', weight: 25, subTasks: [
-        { id: 'en1', name: 'Engine Disassembly', completed: true, assignedTo: 'tech-1' },
-        { id: 'en2', name: 'Block Machining', completed: true, assignedTo: 'tech-1' },
-        { id: 'en3', name: 'Engine Assembly (351 Windsor)', completed: false },
-      ]},
-    ],
-    timeline: [
-      { id: 't1', date: '2025-08-26', update: 'Engine block returned from machine shop.', category: 'Engine & Drivetrain' },
-      { id: 't2', date: '2025-08-18', update: 'Body filler work complete, prepping for primer.', category: 'Body & Paint' },
-    ],
-    media: [
-      { id: 'm1', url: 'https://images.unsplash.com/photo-1603792025623-1a4a4f895a92?q=80&w=2070&auto=format&fit=crop', caption: 'Initial state of the vehicle.', category: 'Body & Paint' },
-      { id: 'm2', url: 'https://images.unsplash.com/photo-1599401133589-a2e2f3a62f84?q=80&w=2070&auto=format&fit=crop', caption: '351 Windsor engine block.', category: 'Engine & Drivetrain' },
-    ],
-    internalNotes: [
-        { id: 'note-1', author: 'Boss', note: 'Customer is very particular about the paint finish. Ensure extra prep time is scheduled.', createdAt: '2025-08-05T10:00:00Z' }
-    ],
-    messages: [
-      { id: 'msg-1', author: 'Client', text: 'Hey, just checking in. How is the bodywork looking?', visibleTo: 'All', createdAt: '2025-08-20T14:00:00Z' },
-      { id: 'msg-2', author: 'Manager', text: 'Hi John, it\'s looking great. We just finished the final sanding. I\'ll upload some photos to the journal this afternoon.', visibleTo: 'All', createdAt: '2025-08-20T15:30:00Z' },
-      // NEW BOSS-ONLY MESSAGE FOR OUR FEED
-      { id: 'msg-3', author: 'Client', text: 'Can we discuss the budget privately? I have some concerns.', visibleTo: 'BossOnly', createdAt: '2025-08-28T09:00:00Z' },
-    ],
-    financials: {
-      totalQuoted: 75000,
-      totalPaid: 37500,
-      invoices: [
-        { id: 'inv-1', description: 'Project Deposit (50%)', amount: 37500, status: 'Paid', dueDate: '2025-08-05' },
-        { id: 'inv-2', description: 'Final Payment', amount: 37500, status: 'Pending', dueDate: '2025-10-30' },
-      ]
-    }
-  },
-  {
-    id: 'charger-1971-doe',
-    customerName: 'Richard Doe',
-    car: { make: 'Dodge', model: 'Charger R/T', year: 1971 },
-    status: 'On Hold',
-    holdReason: 'Awaiting Parts',
     createdAt: '2025-07-15',
+    promisedDate: '2025-10-31',
     categories: [
-     { id: 'ps', name: 'Parts Sourcing', weight: 100, subTasks: [
-        { id: 'ps1', name: 'Source correct vinyl top', completed: false },
-        { id: 'ps2', name: 'Locate OEM rallye wheels', completed: true },
-      ]},
+      { 
+        id: 'bp', name: 'Body & Paint', weight: 30, requiresQa: true,
+        subTasks: [
+          { id: 'bp1', name: 'Media Blasting', status: 'Completed', priority: 'Normal', assignedTo: 'tech-1', estimateHours: 20, actualHours: 22, startDate: '2025-08-20', dueDate: '2025-08-25' },
+          { id: 'bp2', name: 'Rust Repair', status: 'Completed', priority: 'High', assignedTo: 'tech-1', estimateHours: 40, actualHours: 45, startDate: '2025-08-26', dueDate: '2025-09-05' },
+          { id: 'bp3', name: 'Body Filler & Sanding', status: 'In Progress', priority: 'High', assignedTo: 'tech-2', internalNotes: [{id: 'note-1', authorId: 'user-manager', note: 'Ensure feathering is perfect before primer.', createdAt: '2025-08-28T10:00:00Z', type: 'Instruction'}], estimateHours: 30, actualHours: 12, startDate: '2025-08-28', dueDate: '2025-09-10' },
+          { id: 'bp4', name: 'Primer Application', status: 'Pending', priority: 'Normal', assignedTo: 'tech-2', estimateHours: 15, startDate: '2025-09-11', dueDate: '2025-09-15' },
+          { id: 'bp5', name: 'Select Final Paint Shade', status: 'Awaiting Approval', priority: 'High', requiresClientApproval: true, estimateHours: 2 },
+        ]
+      },
+      { 
+        id: 'en', name: 'Engine & Drivetrain', weight: 40, 
+        subTasks: [
+          { id: 'en3', name: 'Engine Assembly (351W)', status: 'In Progress', priority: 'High', assignedTo: 'tech-1', estimateHours: 24, actualHours: 6, startDate: '2025-09-08', dueDate: '2025-09-12', parts: [
+            { id: 'part-1', taskId: 'en3', name: 'Piston Ring Set', partNumber: 'PRS-351W', qty: 1, status: 'Received', unitCost: 1200 },
+            { id: 'part-2', taskId: 'en3', name: 'Main Bearing Kit', partNumber: 'MBK-351W', qty: 1, status: 'Received', unitCost: 950 },
+            { id: 'part-3', taskId: 'en3', name: 'High Volume Oil Pump', partNumber: 'OP-HV-351', qty: 1, status: 'Ordered', unitCost: 800 },
+          ]},
+        ]
+      },
+      {
+        id: 'cs', name: 'Chassis & Suspension', weight: 30, 
+        subTasks: [
+          { id: 'cs2', name: 'Upgrade to Coilover Suspension', status: 'Awaiting Approval', priority: 'High', assignedTo: 'tech-3', estimateHours: 12, requiresClientApproval: true },
+        ]
+      }
     ],
-    timeline: [
-      { id: 't4', date: '2025-08-25', update: 'Project on hold. Reason: Awaiting Parts - Sourcing correct vinyl top.', category: 'Project Status' }
-    ],
-    media: [],
-    internalNotes: [],
-    messages: [],
-    financials: {
-      totalQuoted: 15000,
-      totalPaid: 0,
-      invoices: [
-        { id: 'inv-3', description: 'Parts Deposit', amount: 7500, status: 'Pending', dueDate: '2025-07-20' },
-      ]
-    }
-  },
-  {
-    id: 'camaro-1969-jones',
-    customerName: 'Jane Jones',
-    car: { make: 'Chevrolet', model: 'Camaro SS', year: 1969 },
-    status: 'On Hold',
-    holdReason: 'Awaiting Payment',
-    createdAt: '2025-08-26',
-    categories: [
-      { id: 'en', name: 'Engine Service', weight: 100, subTasks: [
-        { id: 'en1', name: '396 V8 Teardown', completed: true },
-        { id: 'en2', name: 'Replace Air Filter', completed: true },
-        { id: 'en3', name: 'Oil & Filter Change', completed: false },
-      ]},
-    ],
-    timeline: [
-      { id: 't3', date: '2025-08-27', update: 'Project placed on hold. Reason: Awaiting Payment for engine service invoice.', category: 'Project Status' }
-    ],
+    timeline: [ { id: 't1', date: '2025-08-26', update: 'Engine block returned from machine shop.', category: 'Engine & Drivetrain' } ],
+    // --- CORRECTED: Replaced Unsplash URLs with placehold.co ---
     media: [
-      { id: 'm3', url: 'https://images.unsplash.com/photo-1552636242-18319f6a5e23?q=80&w=2070&auto=format&fit=crop', caption: 'Camaro arriving at the workshop.', category: 'Engine Service' }
+      { id: 'm1', url: 'https://placehold.co/1280x720/1f2937/ffffff?text=Mustang+Before', caption: 'Initial state of the vehicle.', category: 'Body & Paint' },
+      { id: 'm2', url: 'https://placehold.co/1280x720/4b5563/ffffff?text=Engine+Block', caption: '351 Windsor engine block after machining.', category: 'Engine & Drivetrain' },
     ],
-    internalNotes: [],
-    messages: [],
-    financials: {
-      totalQuoted: 2500,
-      totalPaid: 0,
-      invoices: [
-        { id: 'inv-4', description: 'Major Engine Service', amount: 2500, status: 'Overdue', dueDate: '2025-08-20' },
-      ]
-    }
+    messages: [ { id: 'msg-1', author: 'John Smith', authorRole: 'Client', text: 'The engine block looks incredible!', visibleTo: 'All', createdAt: '2025-08-27T10:00:00Z' } ],
+    financials: { totalQuoted: 75000, totalPaid: 37500, invoices: [ { id: 'inv-1', description: 'Project Deposit (50%)', amount: 37500, status: 'Paid', dueDate: '2025-07-15' }, { id: 'inv-2', description: 'Final Payment', amount: 37500, status: 'Pending', dueDate: '2025-10-31' } ] }
   },
   {
-    id: 'cuda-1970-williams',
+    id: 'chevelle-1970-garcia',
+    customerName: 'Maria Garcia',
+    car: { make: 'Chevrolet', model: 'Chevelle SS', year: 1970, vin: '136370R123456' },
+    status: 'On Hold', holdReason: 'Awaiting Payment', createdAt: '2025-06-01', promisedDate: '2025-08-15',
+    categories: [ { id: 'el', name: 'Electrical', weight: 100, subTasks: [ { id: 'el1', name: 'Diagnose wiring short', status: 'Completed', priority: 'High', assignedTo: 'tech-2', estimateHours: 8, actualHours: 10, startDate: '2025-08-25', dueDate: '2025-08-26' }, { id: 'el2', name: 'Replace main wiring harness', status: 'Pending', priority: 'Urgent', estimateHours: 40, startDate: '2025-08-27', dueDate: '2025-09-02' }] } ],
+    timeline: [ { id: 't4', date: '2025-07-25', update: 'Project on hold for payment.', category: 'Project Status' } ],
+    // --- CORRECTED: Replaced Unsplash URL ---
+    media: [ { id: 'm3', url: 'https://placehold.co/1280x720/1f2937/ffffff?text=Chevelle+Diagnostics', caption: 'Chevelle in the diagnostics bay.', category: 'Electrical' } ],
+    messages: [],
+    financials: { totalQuoted: 25000, totalPaid: 10000, invoices: [ { id: 'inv-3', description: 'Initial Deposit', amount: 10000, status: 'Paid', dueDate: '2025-06-01' }, { id: 'inv-4', description: 'Wiring Harness Replacement', amount: 5000, status: 'Overdue', dueDate: '2025-07-20' } ] }
+  },
+  {
+    id: 'charger-1968-chen',
+    customerName: 'David Chen',
+    car: { make: 'Dodge', model: 'Charger R/T', year: 1968, vin: 'XS29L8B123456' },
+    status: 'Active',
+    createdAt: '2025-08-20',
+    promisedDate: '2025-11-20',
+    categories: [ { id: 'fa', name: 'Final Assembly', weight: 100, subTasks: [ { id: 'fa1', name: 'Install chrome trim and bumpers', status: 'In Progress', priority: 'High', assignedTo: 'tech-3', estimateHours: 16, startDate: '2025-09-01', dueDate: '2025-09-05', parts: [ { id: 'part-4', taskId: 'fa1', name: 'Front Bumper', qty: 1, status: 'Received' }, { id: 'part-5', taskId: 'fa1', name: 'Rear Bumper', qty: 1, status: 'Ordered' }, { id: 'part-6', taskId: 'fa1', name: 'Wheel Well Trim Kit', qty: 1, status: 'Needed' }, ]}, { id: 'fa2', name: 'Install vinyl top', status: 'Pending', priority: 'Normal', assignedTo: 'tech-3', estimateHours: 8, startDate: '2025-09-08', dueDate: '2025-09-10', parts: [ { id: 'part-7', taskId: 'fa2', name: 'Black Vinyl Top', qty: 1, status: 'Needed' }, ]}, ]}, ],
+    timeline: [ { id: 't5', date: '2025-08-22', update: 'Final assembly has begun.', category: 'Final Assembly' } ],
+    media: [],
+    messages: [ { id: 'msg-3', author: 'David Chen', authorRole: 'Client', text: 'Hi John, can we talk about the final invoice amount offline?', visibleTo: 'BossOnly', createdAt: '2025-08-29T09:00:00Z' } ],
+    financials: { totalQuoted: 45000, totalPaid: 40000, invoices: [ { id: 'inv-5', description: 'Full Project Payment', amount: 45000, status: 'Paid', dueDate: '2025-08-20' } ] }
+  },
+  {
+    id: 'cuda-1971-williams',
     customerName: 'Susan Williams',
-    car: { make: 'Plymouth', model: 'Barracuda', year: 1970 },
+    car: { make: 'Plymouth', model: 'Barracuda', year: 1971, vin: 'BS23R0B123456' },
     status: 'Completed',
-    holdReason: '',
     createdAt: '2025-04-10',
+    promisedDate: '2025-08-20',
     categories: [
      { id: 'fa', name: 'Final Assembly', weight: 100, subTasks: [
-        { id: 'fa1', name: 'Final Polish & Detailing', completed: true },
-        { id: 'fa2', name: 'Customer Delivery', completed: true },
+        { id: 'fa1', name: 'Final Polish & Detailing', status: 'Completed', priority: 'Normal' },
+        { id: 'fa2', name: 'Customer Delivery', status: 'Completed', priority: 'Normal' },
       ]},
     ],
-    timeline: [
-      { id: 't5', date: '2025-08-20', update: 'Project completed and delivered to customer.', category: 'Final Assembly' }
-    ],
-    media: [
-        { id: 'm4', url: 'https://images.unsplash.com/photo-1621287993213-e27145b23b42?q=80&w=2070&auto=format&fit=crop', caption: 'The finished Barracuda!', category: 'Final Assembly' }
-    ],
-    internalNotes: [],
+    timeline: [ { id: 't6', date: '2025-08-20', update: 'Project completed and delivered to customer.', category: 'Final Assembly' } ],
+    // --- CORRECTED: Replaced Unsplash URL ---
+    media: [ { id: 'm4', url: 'https://placehold.co/1280x720/1f2937/ffffff?text=Finished+Barracuda!', caption: 'The finished Barracuda!', category: 'Final Assembly' } ],
     messages: [],
     financials: {
-      totalQuoted: 95000,
-      totalPaid: 95000,
+      totalQuoted: 95000, totalPaid: 95000,
       invoices: [
         { id: 'inv-5', description: 'Project Deposit', amount: 47500, status: 'Paid', dueDate: '2025-04-10' },
         { id: 'inv-6', description: 'Final Payment', amount: 47500, status: 'Paid', dueDate: '2025-08-15' },
@@ -3669,53 +5069,56 @@ export const mockProjects: Project[] = [
 
 ==================== lib\project-templates.ts ====================
 
+// [path]: lib/project-templates.ts
+
 import { Category } from './types';
 
+// CORRECTED: All subtasks now have the required 'priority' and 'internalNotes' fields.
 export const fullRestorationTemplate: Category[] = [
   {
     id: 'body-paint', name: 'Body & Paint', weight: 25, subTasks: [
-      { id: 'bp1', name: 'Media Blasting', completed: false },
-      { id: 'bp2', name: 'Rust Repair & Panel Replacement', completed: false },
-      { id: 'bp3', name: 'Body Filler & Sanding', completed: false },
-      { id: 'bp4', name: 'Primer Application', completed: false },
-      { id: 'bp5', name: 'Final Paint', completed: false },
-      { id: 'bp6', name: 'Clear Coat & Polishing', completed: false },
+      { id: 'bp1', name: 'Media Blasting', status: 'Pending', priority: 'Normal', internalNotes: [] },
+      { id: 'bp2', name: 'Rust Repair & Panel Replacement', status: 'Pending', priority: 'High', internalNotes: [] },
+      { id: 'bp3', name: 'Body Filler & Sanding', status: 'Pending', priority: 'Normal', internalNotes: [] },
+      { id: 'bp4', name: 'Primer Application', status: 'Pending', priority: 'Normal', internalNotes: [] },
+      { id: 'bp5', name: 'Final Paint', status: 'Pending', priority: 'Normal', internalNotes: [] },
+      { id: 'bp6', name: 'Clear Coat & Polishing', status: 'Pending', priority: 'Low', internalNotes: [] },
     ]
   },
   {
     id: 'chassis-suspension', name: 'Chassis & Suspension', weight: 20, subTasks: [
-      { id: 'cs1', name: 'Frame Inspection & Repair', completed: false },
-      { id: 'cs2', name: 'Front Suspension Rebuild', completed: false },
-      { id: 'cs3', name: 'Rear Suspension Rebuild', completed: false },
-      { id: 'cs4', name: 'Brake System Installation', completed: false },
-      { id: 'cs5', name: 'Steering Box & Linkage', completed: false },
+      { id: 'cs1', name: 'Frame Inspection & Repair', status: 'Pending', priority: 'High', internalNotes: [] },
+      { id: 'cs2', name: 'Front Suspension Rebuild', status: 'Pending', priority: 'Normal', internalNotes: [] },
+      { id: 'cs3', name: 'Rear Suspension Rebuild', status: 'Pending', priority: 'Normal', internalNotes: [] },
+      { id: 'cs4', name: 'Brake System Installation', status: 'Pending', priority: 'High', internalNotes: [] },
+      { id: 'cs5', name: 'Steering Box & Linkage', status: 'Pending', priority: 'Normal', internalNotes: [] },
     ]
   },
   {
     id: 'engine', name: 'Engine & Drivetrain', weight: 25, subTasks: [
-      { id: 'en1', name: 'Engine Disassembly & Inspection', completed: false },
-      { id: 'en2', name: 'Block Machining', completed: false },
-      { id: 'en3', name: 'Engine Assembly', completed: false },
-      { id: 'en4', name: 'Transmission Rebuild', completed: false },
-      { id: 'en5', name: 'Driveshaft Balancing & Installation', completed: false },
-      { id: 'en6', name: 'Engine & Transmission Installation', completed: false },
+      { id: 'en1', name: 'Engine Disassembly & Inspection', status: 'Pending', priority: 'High', internalNotes: [] },
+      { id: 'en2', name: 'Block Machining', status: 'Pending', priority: 'Normal', internalNotes: [] },
+      { id: 'en3', name: 'Engine Assembly', status: 'Pending', priority: 'High', internalNotes: [] },
+      { id: 'en4', name: 'Transmission Rebuild', status: 'Pending', priority: 'Normal', internalNotes: [] },
+      { id: 'en5', name: 'Driveshaft Balancing & Installation', status: 'Pending', priority: 'Low', internalNotes: [] },
+      { id: 'en6', name: 'Engine & Transmission Installation', status: 'Pending', priority: 'Normal', internalNotes: [] },
     ]
   },
   {
     id: 'interior', name: 'Interior', weight: 15, subTasks: [
-      { id: 'in1', name: 'Floor Pan Sound Deadening', completed: false },
-      { id: 'in2', name: 'Carpet Installation', completed: false },
-      { id: 'in3', name: 'Dashboard & Gauge Restoration', completed: false },
-      { id: 'in4', name: 'Seat Upholstery', completed: false },
-      { id: 'in5', name: 'Headliner Installation', completed: false },
+      { id: 'in1', name: 'Floor Pan Sound Deadening', status: 'Pending', priority: 'Normal', internalNotes: [] },
+      { id: 'in2', name: 'Carpet Installation', status: 'Pending', priority: 'Low', internalNotes: [] },
+      { id: 'in3', name: 'Dashboard & Gauge Restoration', status: 'Pending', priority: 'Normal', internalNotes: [] },
+      { id: 'in4', name: 'Seat Upholstery', status: 'Pending', priority: 'Normal', internalNotes: [] },
+      { id: 'in5', name: 'Headliner Installation', status: 'Pending', priority: 'Normal', internalNotes: [] },
     ]
   },
   {
     id: 'electrical', name: 'Electrical & Wiring', weight: 15, subTasks: [
-      { id: 'el1', name: 'Design & Layout New Wiring Harness', completed: false },
-      { id: 'el2', name: 'Main Harness Installation', completed: false },
-      { id: 'el3', name: 'Lighting & Signals', completed: false },
-      { id: 'el4', name: 'Ignition System', completed: false },
+      { id: 'el1', name: 'Design & Layout New Wiring Harness', status: 'Pending', priority: 'Normal', internalNotes: [] },
+      { id: 'el2', name: 'Main Harness Installation', status: 'Pending', priority: 'High', internalNotes: [] },
+      { id: 'el3', name: 'Lighting & Signals', status: 'Pending', priority: 'Normal', internalNotes: [] },
+      { id: 'el4', name: 'Ignition System', status: 'Pending', priority: 'Normal', internalNotes: [] },
     ]
   },
 ];
@@ -3723,39 +5126,97 @@ export const fullRestorationTemplate: Category[] = [
 export const majorServiceTemplate: Category[] = [
     {
         id: 'engine', name: 'Engine Service', weight: 60, subTasks: [
-            { id: 'ms1', name: 'Oil & Filter Change', completed: false },
-            { id: 'ms2', name: 'Spark Plug Replacement', completed: false },
-            { id: 'ms3', name: 'Air Filter Replacement', completed: false },
-            { id: 'ms4', name: 'Coolant Flush', completed: false },
-            { id: 'ms5', name: 'Carburetor Tune-up', completed: false },
+            { id: 'ms1', name: 'Oil & Filter Change', status: 'Pending', priority: 'Normal', internalNotes: [] },
+            { id: 'ms2', name: 'Spark Plug Replacement', status: 'Pending', priority: 'Normal', internalNotes: [] },
+            { id: 'ms3', name: 'Air Filter Replacement', status: 'Pending', priority: 'Normal', internalNotes: [] },
+            { id: 'ms4', name: 'Coolant Flush', status: 'Pending', priority: 'Low', internalNotes: [] },
+            { id: 'ms5', name: 'Carburetor Tune-up', status: 'Pending', priority: 'Normal', internalNotes: [] },
         ]
     },
     {
         id: 'chassis', name: 'Chassis Check', weight: 40, subTasks: [
-            { id: 'ms6', name: 'Brake Inspection', completed: false },
-            { id: 'ms7', name: 'Tire Rotation & Pressure Check', completed: false },
-            { id: 'ms8', name: 'Suspension Check', completed: false },
+            { id: 'ms6', name: 'Brake Inspection', status: 'Pending', priority: 'High', internalNotes: [] },
+            { id: 'ms7', name: 'Tire Rotation & Pressure Check', status: 'Pending', priority: 'Low', internalNotes: [] },
+            { id: 'ms8', name: 'Suspension Check', status: 'Pending', priority: 'Normal', internalNotes: [] },
         ]
     }
 ];
 
 ==================== lib\types.ts ====================
 
+// [path]: lib/types.ts
+
+// =======================================================================
+// NEW ENTITIES - These are the new data models for our advanced features
+// =======================================================================
+
+export type QAStatus = 'Pending' | 'Passed' | 'Failed';
+export type HoldReason = 'Awaiting Parts' | 'Awaiting Payment' | 'Awaiting Client Decision' | 'Internal QA' | '';
+
+export interface Approval {
+  id: string;
+  taskId: string;
+  title: string;
+  description?: string;
+  priceImpact?: number;
+  etaImpactDays?: number;
+  status: 'Pending'|'Approved'|'Rejected';
+  decidedAt?: string;
+  decidedBy?: string; // userId
+}
+
+export interface Part {
+  id: string;
+  taskId: string;
+  name: string;
+  partNumber?: string;
+  supplier?: string;
+  qty: number;
+  unitCost?: number;
+  status: 'Needed'|'Ordered'|'Received'|'Cancelled';
+  eta?: string;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  supplier: string;
+  items: { partId: string; qty: number; unitCost: number }[];
+  status: 'Open'|'Received'|'Cancelled';
+  eta?: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  sku: string;
+  name: string;
+  stockQty: number;
+  reorderPoint?: number;
+  supplier?: string;
+  unitCost?: number;
+}
+
+
+// =======================================================================
+// EXISTING ENTITIES - These are being extended with new fields
+// =======================================================================
+
 export interface Technician {
   id: string;
   name: string;
 }
 
-export interface InternalNote {
+export type UserRole = 'Boss' | 'Manager' | 'Technician' | 'Client';
+
+export interface User {
   id: string;
-  author: string; // For now, just a name. Later could be a Technician ID.
-  note: string;
-  createdAt: string;
+  name: string;
+  role: UserRole;
 }
 
 export interface Message {
   id: string;
-  author: 'Client' | 'Boss' | 'Manager';
+  author: string;
+  authorRole: UserRole;
   text: string;
   visibleTo: 'All' | 'BossOnly' | 'StaffOnly';
   createdAt: string;
@@ -3769,13 +5230,33 @@ export interface Invoice {
   description: string;
 }
 
+export interface InternalTaskNote {
+  id: string;
+  authorId: string;
+  note: string;
+  createdAt: string;
+  type: 'Instruction' | 'Feedback';
+}
+
 export interface SubTask {
   id: string;
-  name: string;
-  completed: boolean;
-  assignedTo?: Technician['id']; // Optional field for technician ID
-  // NEW: Flag for tasks that require client approval
+  name:string;
+  status: 'Pending' | 'In Progress' | 'Awaiting Approval' | 'Completed';
+  priority: 'Low' | 'Normal' | 'High' | 'Urgent';
+  assignedTo?: Technician['id'];
   requiresClientApproval?: boolean;
+  internalNotes?: InternalTaskNote[];
+  estimateHours?: number;
+  actualHours?: number;
+  // --- MODIFIED: Added startDate ---
+  startDate?: string; // Format: 'YYYY-MM-DD'
+  dueDate?: string;   // Format: 'YYYY-MM-DD'
+  qaStatus?: QAStatus;
+  blockedBy?: string[];
+  checklist?: {label:string; value?:string|number|boolean; checked: boolean}[];
+  attachments?: {mediaId:string}[];
+  parts?: Part[];
+  approvals?: Approval[];
 }
 
 export interface Category {
@@ -3783,6 +5264,8 @@ export interface Category {
   name: string;
   weight: number;
   subTasks: SubTask[];
+  requiresQa?: boolean;
+  owner?: string; // Technician id for category lead
 }
 
 export interface TimelineUpdate {
@@ -3806,36 +5289,89 @@ export interface Project {
     make: string;
     model: string;
     year: number;
+    vin?: string;
+    color?: string;
+    mileageIn?: number;
+    mileageOut?: number;
   };
   status: 'Active' | 'Completed' | 'On Hold';
-  holdReason?: 'Awaiting Parts' | 'Awaiting Payment' | 'Awaiting Client Decision' | '';
+  holdReason?: HoldReason;
   createdAt: string;
+  promisedDate?: string;
   categories: Category[];
   timeline: TimelineUpdate[];
   media: Media[];
-  internalNotes: InternalNote[];
   messages: Message[];
   financials: {
     invoices: Invoice[];
     totalQuoted: number;
     totalPaid: number;
+    partsCost?: number;
+    laborCost?: number;
+    totalCost?: number; // parts + labor
   };
+  purchaseOrders?: PurchaseOrder[];
+  branchId?: string;
+}
+
+export interface AssignedTask extends SubTask {
+  projectId: string;
+  projectName: string;
+  categoryName: string;
 }
 
 ==================== lib\utils.ts ====================
 
+// [path]: lib/utils.ts
+
 import { Project } from './types';
 
-// This function is now centralized and can be imported anywhere.
+// This is the main workshop labor rate in ZAR per hour.
+const WORKSHOP_HOURLY_RATE = 450;
+
 export const calculateOverallProgress = (project: Project | null): number => {
   if (!project || !project.categories || project.categories.length === 0) return 0;
 
   const totalProgress = project.categories.reduce((acc, category) => {
-    const completedTasks = category.subTasks.filter(t => t.completed).length;
+    const completedTasks = category.subTasks.filter(t => t.status === 'Completed').length;
     const categoryProgress = category.subTasks.length > 0 ? (completedTasks / category.subTasks.length) : 0;
     return acc + (categoryProgress * category.weight);
   }, 0);
-
+  
   const totalWeight = project.categories.reduce((acc, category) => acc + category.weight, 0);
-  return totalWeight > 0 ? totalProgress / totalWeight * 100 : 0;
+
+  if (totalWeight === 0) return 0;
+
+  return (totalProgress / totalWeight) * 100;
+};
+
+// --- NEW: Financial Calculation Functions ---
+
+export const calculateProjectCosts = (project: Project) => {
+    // 1. Calculate total labor cost
+    const totalHours = project.categories.reduce((acc, category) => 
+        acc + category.subTasks.reduce((taskAcc, task) => taskAcc + (task.actualHours || 0), 0)
+    , 0);
+    const laborCost = totalHours * WORKSHOP_HOURLY_RATE;
+
+    // 2. Calculate total parts cost
+    const partsCost = project.categories.reduce((acc, category) =>
+        acc + category.subTasks.reduce((taskAcc, task) =>
+            taskAcc + (task.parts?.reduce((partAcc, part) => partAcc + ((part.unitCost || 0) * part.qty), 0) || 0)
+        , 0)
+    , 0);
+
+    const totalCost = laborCost + partsCost;
+
+    return { laborCost, partsCost, totalCost };
+};
+
+export const calculateProjectProfitability = (project: Project) => {
+    const { totalCost } = calculateProjectCosts(project);
+    const totalQuoted = project.financials.totalQuoted;
+    
+    const netProfit = totalQuoted - totalCost;
+    const margin = totalQuoted > 0 ? (netProfit / totalQuoted) * 100 : 0;
+
+    return { netProfit, margin };
 };

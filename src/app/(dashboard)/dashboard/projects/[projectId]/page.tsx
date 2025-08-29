@@ -1,11 +1,13 @@
+// [path]: app/(dashboard)/dashboard/projects/[projectId]/page.tsx
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { getProjectById, updateProject, deleteProject } from '@/lib/data-service';
+// --- NEW: Import updateCategoryQaStatus ---
+import { getProjectById, updateProject, deleteProject, updateCategoryQaStatus } from '@/lib/data-service';
 import { mockTechnicians } from '@/lib/mock-data';
-// Corrected: Removed unused 'Category' and 'SubTask' types
-import { Project, TimelineUpdate, Technician, Message } from '@/lib/types';
+import { Project, TimelineUpdate, Technician, Message, SubTask } from '@/lib/types';
 import ProjectHeader from '@/components/ProjectHeader';
 import InteractiveProgressCategory from '@/components/dashboard/InteractiveProgressCategory';
 import AddTimelineForm from '@/components/dashboard/AddTimelineForm';
@@ -17,15 +19,17 @@ import Timeline from '@/components/Timeline';
 import { calculateOverallProgress } from '@/lib/utils';
 import MessagingCenter from '@/components/dashboard/MessagingCenter';
 import FinancialsPanel from '@/components/dashboard/FinancialsPanel';
+import { useAuth } from '@/app/AuthContext';
 
 export default function WorkshopProjectPage({ params }: { params: { projectId: string } }) {
   const router = useRouter();
+  const { user } = useAuth();
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
-  
+
   useEffect(() => {
     const foundProject = getProjectById(params.projectId);
     setProject(foundProject || null);
@@ -38,13 +42,27 @@ export default function WorkshopProjectPage({ params }: { params: { projectId: s
     updateProject(updatedProject.id, updatedProject);
   }, []);
 
-  const handleTaskToggle = (taskId: string, categoryId: string) => {
+  // --- NEW: Handler for QA status changes ---
+  const handleQaStatusChange = useCallback((categoryId: string, qaPassed: boolean) => {
+    if (!project) return;
+    const updatedProject = updateCategoryQaStatus(project.id, categoryId, qaPassed);
+    if(updatedProject) {
+        setProject(JSON.parse(JSON.stringify(updatedProject)));
+    }
+  }, [project]);
+
+  const handleTaskStatusChange = (taskId: string, categoryId: string) => {
     if (!project) return;
     const newProject = JSON.parse(JSON.stringify(project)) as Project;
     const category = newProject.categories.find(c => c.id === categoryId);
     if (category) {
       const task = category.subTasks.find(t => t.id === taskId);
-      if (task) task.completed = !task.completed;
+      if (task) {
+        const statusCycle: SubTask['status'][] = ['Pending', 'In Progress', 'Awaiting Approval', 'Completed'];
+        const currentIndex = statusCycle.indexOf(task.status);
+        const nextIndex = (currentIndex + 1) % statusCycle.length;
+        task.status = statusCycle[nextIndex];
+      }
     }
     saveProject(newProject);
   };
@@ -71,9 +89,14 @@ export default function WorkshopProjectPage({ params }: { params: { projectId: s
     saveProject(newProject);
   };
 
-  const handleSendMessage = (message: Omit<Message, 'id' | 'createdAt'>) => {
-    if (!project) return;
-    const newMessage: Message = { ...message, id: `msg-${Date.now()}`, createdAt: new Date().toISOString() };
+  const handleSendMessage = (message: Omit<Message, 'id' | 'createdAt' | 'authorRole'>) => {
+    if (!project || !user) return;
+    const newMessage: Message = { 
+        ...message, 
+        id: `msg-${Date.now()}`, 
+        createdAt: new Date().toISOString(),
+        authorRole: user.role
+    };
     const newProject = { ...project, messages: [...project.messages, newMessage] };
     saveProject(newProject);
   };
@@ -123,11 +146,11 @@ export default function WorkshopProjectPage({ params }: { params: { projectId: s
     }
   };
 
-  if (isLoading) return <div className="flex items-center justify-center h-full"><p className="text-gray-400">Loading Project...</p></div>;
+  if (isLoading || !user) return <div className="flex items-center justify-center h-full"><p className="text-gray-400">Loading Project...</p></div>;
   if (!project) return <div className="flex items-center justify-center h-full"><h1 className="text-2xl font-bold text-red-500">Project Not Found</h1></div>;
 
   const overallProgress = calculateOverallProgress(project);
-  
+
   return (
     <>
       <EditProjectModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSave={handleSaveEdits} project={project} />
@@ -138,7 +161,7 @@ export default function WorkshopProjectPage({ params }: { params: { projectId: s
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <div id="financials" className="scroll-mt-24"><FinancialsPanel project={project} onMarkAsPaid={handleMarkAsPaid} /></div>
-            <div id="messages" className="scroll-mt-24"><MessagingCenter project={project} currentUserRole="Boss" onSendMessage={handleSendMessage} /></div>
+            <div id="messages" className="scroll-mt-24"><MessagingCenter project={project} currentUserRole={user.role} onSendMessage={handleSendMessage} /></div>
             <div id="progress" className="scroll-mt-24">
               <h2 className="text-2xl font-bold mb-4 text-white">Manage Progress</h2>
               <div className="space-y-6">
@@ -147,9 +170,11 @@ export default function WorkshopProjectPage({ params }: { params: { projectId: s
                     key={category.id} 
                     category={category}
                     technicians={technicians}
-                    onTaskToggle={handleTaskToggle} 
+                    onTaskToggle={handleTaskStatusChange}
                     onTaskAssign={handleTaskAssign}
                     onToggleApproval={handleToggleApproval}
+                    // --- NEW: Pass the QA handler down to the component ---
+                    onQaStatusChange={handleQaStatusChange}
                    />
                 ))}
               </div>
@@ -166,7 +191,7 @@ export default function WorkshopProjectPage({ params }: { params: { projectId: s
                <Timeline updates={project.timeline} />
             </div>
           </div>
-         </div>
+        </div>
       </div>
     </>
   );

@@ -1,3 +1,5 @@
+// [path]: app/(dashboard)/dashboard/projects/page.tsx
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,10 +7,10 @@ import { getProjects } from '@/lib/data-service';
 import { Project } from '@/lib/types';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
-import { Plus, AlertTriangle, Clock } from 'lucide-react';
+import { Plus, AlertTriangle, Clock, Wrench } from 'lucide-react'; // Added Wrench icon
 import { calculateOverallProgress } from '@/lib/utils';
 
-// UPGRADED: This component now displays the hold reason
+// UPGRADED: This component now displays the hold reason with icons
 const StatusDisplay = ({ status, holdReason }: { status: Project['status'], holdReason: Project['holdReason'] }) => {
   const statusClasses = {
     Active: 'bg-green-900/50 text-green-300 border border-green-500/30',
@@ -16,16 +18,18 @@ const StatusDisplay = ({ status, holdReason }: { status: Project['status'], hold
     Completed: 'bg-red-900/50 text-red-300 border border-red-500/30',
   };
   
-  const holdReasonIcons = {
-    'Awaiting Parts': <Clock className="h-3 w-3 mr-1.5" />,
+  const holdReasonIcons: { [key: string]: React.ReactElement } = {
+    'Awaiting Parts': <Wrench className="h-3 w-3 mr-1.5" />,
     'Awaiting Payment': <span className="mr-1.5 font-bold text-lg leading-none">$</span>,
     'Awaiting Client Decision': <AlertTriangle className="h-3 w-3 mr-1.5" />,
   };
 
+  const displayText = status === 'On Hold' && holdReason ? holdReason : status;
+
   return (
     <div className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${statusClasses[status]}`}>
       {status === 'On Hold' && holdReason && holdReasonIcons[holdReason]}
-      {status === 'On Hold' && holdReason ? holdReason : status}
+      {displayText}
     </div>
   );
 };
@@ -76,7 +80,6 @@ export default function ProjectsPage() {
                       <div className="text-sm text-gray-300">{project.customerName}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                       {/* USE THE NEW COMPONENT */}
                       <StatusDisplay status={project.status} holdReason={project.holdReason} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

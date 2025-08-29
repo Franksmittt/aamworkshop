@@ -1,10 +1,13 @@
+// [path]: components/ProjectHeader.tsx
+
 'use client';
 
 import { motion } from 'framer-motion';
 import { Project } from '@/lib/types';
 import ProgressBar from './ui/ProgressBar';
 import Button from './ui/Button';
-import { Edit } from 'lucide-react';
+import { Edit, BookOpen } from 'lucide-react';
+import Link from 'next/link';
 
 interface ProjectHeaderProps {
   project: Project;
@@ -13,7 +16,7 @@ interface ProjectHeaderProps {
 }
 
 const ProjectHeader = ({ project, overallProgress, onEdit }: ProjectHeaderProps) => {
-  const { car, customerName, status, holdReason } = project; // Destructure holdReason
+  const { car, customerName, status, holdReason } = project;
   
   const statusClasses = {
     Active: 'bg-green-900/50 text-green-300 border border-green-500/30',
@@ -42,7 +45,6 @@ const ProjectHeader = ({ project, overallProgress, onEdit }: ProjectHeaderProps)
             <div className={`text-sm font-medium px-3 py-1 rounded-full inline-block ${statusClasses[status]}`}>
               {status}
             </div>
-            {/* NEW: Conditionally render the hold reason */}
             {status === 'On Hold' && holdReason && (
               <p className="text-xs text-yellow-300 mt-1">{holdReason}</p>
             )}
@@ -53,9 +55,17 @@ const ProjectHeader = ({ project, overallProgress, onEdit }: ProjectHeaderProps)
               Edit
             </Button>
           )}
+          {/* --- NEW: Conditionally render the Build Book button --- */}
+          {status === 'Completed' && (
+            <Button href={`/projects/${project.id}/build-book`} variant="primary" size="sm">
+              <BookOpen className="h-4 w-4 mr-2" />
+              View Build Book
+            </Button>
+          )}
         </div>
       </div>
-      <div>
+ 
+       <div>
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium text-gray-300">Overall Progress</span>
           <span className="text-lg font-bold text-red-500">{Math.round(overallProgress)}%</span>

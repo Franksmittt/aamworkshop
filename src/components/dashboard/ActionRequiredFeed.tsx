@@ -1,3 +1,5 @@
+// [path]: components/dashboard/ActionRequiredFeed.tsx
+
 'use client';
 
 import { Project } from '@/lib/types';
@@ -21,13 +23,13 @@ const generateActionItems = (projects: Project[]) => {
                 projectId: project.id,
                 icon: DollarSign,
                 color: 'blue',
-                // NEW: Add a hash to scroll to the financials panel
+                // This hash will now scroll the user to the financials panel
                 href: `/dashboard/projects/${project.id}#financials`
             });
         }
 
         for (const message of project.messages) {
-            if (message.visibleTo === 'BossOnly' && message.author === 'Client') {
+            if (message.visibleTo === 'BossOnly' && message.authorRole === 'Client') {
                 items.push({
                     id: `message-${message.id}`,
                     type: 'Message',
@@ -35,13 +37,14 @@ const generateActionItems = (projects: Project[]) => {
                     projectId: project.id,
                     icon: MessageCircle,
                     color: 'purple',
-                    // NEW: Add a hash to scroll to the messages panel
+                    // This hash will now scroll the user to the messages panel
                     href: `/dashboard/projects/${project.id}#messages`
                 });
             }
         }
     }
     
+    // Placeholder for overdue tasks, can be made dynamic later
     items.push({
         id: `overdue-placeholder`,
         type: 'Overdue',
@@ -49,7 +52,7 @@ const generateActionItems = (projects: Project[]) => {
         projectId: 'mustang-1969-smith',
         icon: Clock,
         color: 'red',
-        href: `/dashboard/projects/mustang-1969-smith` // No specific hash for now
+        href: `/dashboard/projects/mustang-1969-smith#progress`
     });
 
     return items;
