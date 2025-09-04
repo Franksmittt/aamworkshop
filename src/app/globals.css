@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+:root {
+  --background: #111111; /* Charcoal/Dark Gray */
+  --foreground: #f1f1f1; /* Light Gray/White text */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
+  /* Brand Colors - Red Accent */
+  --color-primary-50: #fee2e2;
+  --color-primary-100: #fecaca;
+  --color-primary-200: #fca5a5;
+  --color-primary-300: #f87171;
+  --color-primary-400: #ef4444;
+  --color-primary-500: #dc2626; /* Main Red Accent */
+  --color-primary-600: #b91c1c;
+  --color-primary-700: #991b1b;
+  --color-primary-800: #7f1d1d;
+  --color-primary-900: #450a0a;
+  
+  /* Enhanced Shadows (adjusted for dark theme) */
+  --shadow-soft: 0 2px 15px -3px rgba(0, 0, 0, 0.2), 0 10px 20px -2px rgba(0, 0, 0, 0.1);
+  --shadow-medium: 0 4px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+  --shadow-large: 0 10px 50px -12px rgba(0, 0, 0, 0.5);
+  
+  /* Container Widths */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1536px;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Grid pattern utility (adjusted for dark theme) */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 25px 25px;
+}
+
+/* Custom utilities */
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Focus styles */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900;
+}
