@@ -1,15 +1,15 @@
-// [path]: app/(dashboard)/dashboard/performance/page.tsx
+// [path]: src/app/(dashboard)/dashboard/performance/page.tsx
 
 'use client';
 
-import { useState, useMemo } from 'react';
-import { getProjects, getShifts } from '@/lib/data-service';
-import { mockUsers, mockTechnicians } from '@/lib/mock-data';
-import { Project, Shift } from '@/lib/types';
+import { useState, useMemo, useEffect } from 'react';
+import { getProjects, getShifts, getTechnicians, getUserTimeTrackingStatus } from '@/lib/data-service';
+import { Project, Shift, Technician } from '@/lib/types';
 import { startOfWeek, startOfMonth, parseISO, differenceInMilliseconds } from 'date-fns';
 import PerformanceBarChart from '@/components/dashboard/PerformanceBarChart';
 import TechnicianPerformanceCard from '@/components/dashboard/TechnicianPerformanceCard';
 import TechnicianDetailModal from '@/components/dashboard/TechnicianDetailModal';
+import { LucideIcon, Wrench, Coffee, LogOut } from 'lucide-react';
 
 type TimeRange = 'This Week' | 'This Month' | 'All Time';
 
@@ -20,6 +20,12 @@ interface PerformanceStats {
   taskHours: number;
   shiftHours: number;
   utilization: number;
+  currentStatus: {
+    Icon: LucideIcon;
+    text: string;
+    color: string;
+    subtext?: string;
+  };
 }
 
 const calculateShiftDuration = (shift: Shift): number => {
@@ -36,11 +42,18 @@ const calculateShiftDuration = (shift: Shift): number => {
 
 export default function PerformancePage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('This Week');
-  const allProjects: Project[] = useMemo(() => getProjects(), []);
-  const allShifts: Shift[] = useMemo(() => getShifts(), []);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [allShifts, setAllShifts] = useState<Shift[]>([]);
+  const [allTechnicians, setAllTechnicians] = useState<Technician[]>([]);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedTechnician, setSelectedTechnician] = useState<{id: string; name: string} | null>(null);
+  const [selectedTechnician, setSelectedTechnician] = useState<PerformanceStats | null>(null);
+
+  useEffect(() => {
+    setAllProjects(getProjects());
+    setAllShifts(getShifts());
+    setAllTechnicians(getTechnicians());
+  }, []);
 
   const performanceData: PerformanceStats[] = useMemo(() => {
     const now = new Date();
@@ -52,44 +65,66 @@ export default function PerformancePage() {
 
     const technicianData: Record<string, { tasksCompleted: number; taskHours: number; shiftHours: number; }> = {};
     
-    mockTechnicians.forEach(tech => {
+    allTechnicians.forEach(tech => {
         technicianData[tech.userId] = { tasksCompleted: 0, taskHours: 0, shiftHours: 0 };
     });
 
     allProjects.forEach(project => {
       project.categories.forEach(category => {
         category.subTasks.forEach(task => {
-          if (task.status === 'Completed' && task.completedAt && task.assignedTo) {
-            const tech = mockTechnicians.find(t => t.id === task.assignedTo);
-            if(tech && technicianData[tech.userId] && parseISO(task.completedAt) >= startDate){
-                technicianData[tech.userId].tasksCompleted += 1;
-                technicianData[tech.userId].taskHours += task.actualHours || 0;
-            }
+          const tech = allTechnicians.find(t => t.id === task.assignedTo);
+          if (task.status === 'Completed' && task.completedAt && tech && technicianData[tech.userId] && parseISO(task.completedAt) >= startDate) {
+            technicianData[tech.userId].tasksCompleted += 1;
+            technicianData[tech.userId].taskHours += task.actualHours || 0;
           }
         });
       });
     });
-    
+
     allShifts.forEach(shift => {
         if(technicianData[shift.userId] && parseISO(shift.clockInTime) >= startDate){
             technicianData[shift.userId].shiftHours += calculateShiftDuration(shift);
         }
     });
 
-    return mockTechnicians.map(tech => {
+    return allTechnicians.map(tech => {
         const data = technicianData[tech.userId];
-        const user = mockUsers.find(u => u.id === tech.userId);
         const utilization = data.shiftHours > 0 ? (data.taskHours / data.shiftHours) * 100 : 0;
+        
+        const timeStatus = getUserTimeTrackingStatus(tech.userId);
+        let currentStatus: PerformanceStats['currentStatus'];
+
+        switch (timeStatus.status) {
+          case 'OnBreak':
+            currentStatus = { Icon: Coffee, text: `On ${timeStatus.breakType} Break`, color: 'text-yellow-400' };
+            break;
+          case 'ClockedOut':
+            currentStatus = { Icon: LogOut, text: 'Clocked Out', color: 'text-gray-500' };
+            break;
+          case 'ClockedIn':
+            const activeTask = allProjects
+              .flatMap(p => p.categories.flatMap(c => c.subTasks.map(t => ({...t, projectName: `${p.car.year} ${p.car.make} ${p.car.model}` }))))
+              .find(t => t.assignedTo === tech.id && t.status === 'In Progress');
+            
+            if (activeTask) {
+              currentStatus = { Icon: Wrench, text: activeTask.name, subtext: activeTask.projectName, color: 'text-green-400 animate-pulse' };
+            } else {
+              currentStatus = { Icon: Wrench, text: 'Available', color: 'text-blue-400' };
+            }
+            break;
+        }
+
         return {
-            technicianId: tech.userId,
-            name: user?.name || tech.name,
+            technicianId: tech.id,
+            name: tech.name,
             tasksCompleted: data.tasksCompleted,
             taskHours: data.taskHours,
             shiftHours: data.shiftHours,
             utilization: Math.min(utilization, 100),
+            currentStatus,
         };
     });
-  }, [allProjects, allShifts, timeRange]);
+  }, [allProjects, allShifts, allTechnicians, timeRange]);
 
   const chartData = performanceData.map(tech => ({
       name: tech.name,
@@ -100,7 +135,7 @@ export default function PerformancePage() {
   const timeRangeFilters: TimeRange[] = ['This Week', 'This Month', 'All Time'];
 
   const handleCardClick = (technician: PerformanceStats) => {
-    setSelectedTechnician({ id: technician.technicianId, name: technician.name });
+    setSelectedTechnician(technician);
     setIsModalOpen(true);
   };
 
@@ -118,7 +153,7 @@ export default function PerformancePage() {
                 key={filter}
                 onClick={() => setTimeRange(filter)}
                 className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                  timeRange === filter ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    timeRange === filter ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'
                 }`}
               >
                 {filter}
@@ -127,7 +162,7 @@ export default function PerformancePage() {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
           {performanceData.map(techStats => (
             <TechnicianPerformanceCard 
               key={techStats.technicianId}
@@ -138,7 +173,7 @@ export default function PerformancePage() {
         </div>
 
         <div>
-          <h2 className="text-2xl font-bold text-white mb-4">Shift Hours vs. Task Hours</h2>
+          <h2 className="text-2xl font-bold text-white mb-4">Shift Hours vs. Task Hours ({timeRange})</h2>
           <PerformanceBarChart data={chartData} />
         </div>
       </div>

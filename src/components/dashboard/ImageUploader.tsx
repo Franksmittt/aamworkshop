@@ -1,4 +1,4 @@
-// [path]: components/dashboard/ImageUploader.tsx
+// [path]: src/components/dashboard/ImageUploader.tsx
 
 'use client';
 
@@ -56,7 +56,8 @@ const ImageUploader = ({ onUploadComplete }: ImageUploaderProps) => {
         <div className="flex flex-col items-center justify-center">
           <Camera className="h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-semibold text-white mb-2">Capture Progress</h3>
-          <p className="text-sm text-gray-500 mb-4">Tap the button to open your device's camera or select a photo.</p>
+          {/* --- FIX IS ON THIS LINE --- */}
+          <p className="text-sm text-gray-500 mb-4">Tap the button to open your device&apos;s camera or select a photo.</p>
           <Button onClick={triggerFileInput} variant="secondary">
             <UploadCloud className="h-5 w-5 mr-2" />
             Take or Upload Photo

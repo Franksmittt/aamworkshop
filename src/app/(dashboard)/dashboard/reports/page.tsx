@@ -1,13 +1,13 @@
-// [path]: app/(dashboard)/dashboard/reports/page.tsx
+// [path]: src/app/(dashboard)/dashboard/reports/page.tsx
 
 'use client';
 
-import { useState, useMemo } from 'react';
-import { getProjects, getShifts } from '@/lib/data-service';
-import { mockUsers, mockTechnicians } from '@/lib/mock-data';
-import { Project, Shift } from '@/lib/types';
+import { useState, useMemo, useEffect } from 'react';
+import { getProjects, getShifts, getTechnicians } from '@/lib/data-service';
+import { Project, Shift, Technician } from '@/lib/types';
 import { startOfWeek, startOfMonth, parseISO, differenceInMilliseconds } from 'date-fns';
 import { ArrowUpDown } from 'lucide-react';
+
 type TimeRange = 'This Week' | 'This Month' | 'All Time';
 
 interface PerformanceStats {
@@ -21,6 +21,7 @@ interface PerformanceStats {
 }
 
 type SortKey = keyof PerformanceStats;
+
 const calculateShiftDuration = (shift: Shift): number => {
     if (!shift.clockOutTime) return 0;
     const duration = differenceInMilliseconds(parseISO(shift.clockOutTime), parseISO(shift.clockInTime));
@@ -32,12 +33,19 @@ const calculateShiftDuration = (shift: Shift): number => {
     }, 0);
     return (duration - breakDuration) / (1000 * 60 * 60);
 };
+
 export default function ReportsPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('This Week');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' }>({ key: 'utilization', direction: 'descending' });
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [allShifts, setAllShifts] = useState<Shift[]>([]);
+  const [allTechnicians, setAllTechnicians] = useState<Technician[]>([]);
   
-  const allProjects: Project[] = useMemo(() => getProjects(), []);
-  const allShifts: Shift[] = useMemo(() => getShifts(), []);
+  useEffect(() => {
+    setAllProjects(getProjects());
+    setAllShifts(getShifts());
+    setAllTechnicians(getTechnicians());
+  }, []);
 
   const performanceData: PerformanceStats[] = useMemo(() => {
     const now = new Date();
@@ -48,37 +56,39 @@ export default function ReportsPage() {
     else startDate = new Date(0);
 
     const techDataMap: Record<string, { tasksCompleted: number; taskHours: number; shiftHours: number; }> = {};
-    mockTechnicians.forEach(tech => {
+    allTechnicians.forEach(tech => {
         techDataMap[tech.userId] = { tasksCompleted: 0, taskHours: 0, shiftHours: 0 };
     });
 
     allProjects.forEach(p => p.categories.forEach(c => c.subTasks.forEach(task => {
-        const tech = mockTechnicians.find(t => t.id === task.assignedTo);
+        const tech = allTechnicians.find(t => t.id === task.assignedTo);
         if (task.status === 'Completed' && task.completedAt && tech && techDataMap[tech.userId] && parseISO(task.completedAt) >= startDate) {
             techDataMap[tech.userId].tasksCompleted++;
             techDataMap[tech.userId].taskHours += task.actualHours || 0;
         }
     })));
+
     allShifts.forEach(shift => {
         if (techDataMap[shift.userId] && parseISO(shift.clockInTime) >= startDate) {
             techDataMap[shift.userId].shiftHours += calculateShiftDuration(shift);
         }
     });
-    return mockTechnicians.map(tech => {
+
+    return allTechnicians.map(tech => {
         const data = techDataMap[tech.userId];
-        const user = mockUsers.find(u => u.id === tech.userId);
         const utilization = data.shiftHours > 0 ? (data.taskHours / data.shiftHours) * 100 : 0;
         return {
             technicianId: tech.userId,
-            name: user?.name || 'Unknown',
+            name: tech.name,
             tasksCompleted: data.tasksCompleted,
             taskHours: data.taskHours,
             shiftHours: data.shiftHours,
             utilization: Math.min(utilization, 100),
-            rate: tech.rate || 0, // <-- ADDED
+            // --- FIX: Changed tech.rate to tech.hourlyRate ---
+            rate: tech.hourlyRate || 0,
         };
     });
-  }, [allProjects, allShifts, timeRange]);
+  }, [allProjects, allShifts, allTechnicians, timeRange]);
   
   const sortedData = useMemo(() => {
     const sortableData = [...performanceData];
@@ -88,11 +98,12 @@ export default function ReportsPage() {
         }
         if (a[sortConfig.key] > b[sortConfig.key]) {
             return sortConfig.direction === 'ascending' ? 1 : -1;
-         }
+        }
         return 0;
     });
     return sortableData;
   }, [performanceData, sortConfig]);
+
   const requestSort = (key: SortKey) => {
     let direction: 'ascending' | 'descending' = 'descending';
     if (sortConfig.key === key && sortConfig.direction === 'descending') {
@@ -100,8 +111,13 @@ export default function ReportsPage() {
     }
     setSortConfig({ key, direction });
   };
+  
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount);
+  };
 
   const timeRangeFilters: TimeRange[] = ['This Week', 'This Month', 'All Time'];
+
   return (
     <div>
       <div className="mb-8">
@@ -112,7 +128,7 @@ export default function ReportsPage() {
       <div className="bg-gray-800 border border-white/10 rounded-lg shadow-soft">
         <div className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-700">
             <h2 className="text-xl font-bold text-white">Technician Leaderboard</h2>
-             <div className="flex items-center space-x-2 bg-gray-900/50 border border-white/10 rounded-lg p-1 mt-4 sm:mt-0">
+            <div className="flex items-center space-x-2 bg-gray-900/50 border border-white/10 rounded-lg p-1 mt-4 sm:mt-0">
                 {timeRangeFilters.map(filter => (
                 <button key={filter} onClick={() => setTimeRange(filter)}
                     className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${timeRange === filter ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}>
@@ -124,13 +140,13 @@ export default function ReportsPage() {
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-700">
             <thead className="bg-gray-900/50">
-               <tr>
+             <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Name</th>
                 {[
-                    { key: 'rate', label: 'Rate P/H' }, // <-- ADDED
                     { key: 'tasksCompleted', label: 'Tasks Completed' },
                     { key: 'taskHours', label: 'Task Hours' },
                     { key: 'shiftHours', label: 'Shift Hours' },
+                    { key: 'rate', label: 'Rate P/H' }, // <-- ADDED
                     { key: 'utilization', label: 'Utilization' }
                 ].map(({ key, label }) => (
                     <th key={key} className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase cursor-pointer hover:text-white" onClick={() => requestSort(key as SortKey)}>
@@ -139,15 +155,14 @@ export default function ReportsPage() {
                 ))}
               </tr>
             </thead>
-                     <tbody className="bg-gray-800 divide-y divide-gray-700">
+            <tbody className="bg-gray-800 divide-y divide-gray-700">
               {sortedData.map((tech) => (
                 <tr key={tech.technicianId} className="hover:bg-gray-700/50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{tech.name}</td>
-                  {/* --- NEW: Rate Column --- */}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 font-semibold">{new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(tech.rate)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{tech.tasksCompleted}</td>
-                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{tech.taskHours.toFixed(2)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{tech.taskHours.toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{tech.shiftHours.toFixed(2)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-300">{formatCurrency(tech.rate)}</td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${tech.utilization > 75 ? 'text-green-400' : tech.utilization > 50 ? 'text-yellow-400' : 'text-red-400'}`}>
                     {tech.utilization.toFixed(1)}%
                   </td>
@@ -155,7 +170,7 @@ export default function ReportsPage() {
               ))}
             </tbody>
           </table>
-           </div>
+        </div>
       </div>
     </div>
   );
