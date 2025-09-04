@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+:root {
+  --background: #F5F5DC; /* Veld Beige */
+  --foreground: #2F4F4F; /* Dark Slate Gray */
+  
+  /* Joune Color System - "Essence of the Earth" */
+  --warm-ochre: #D2691E;
+  --deep-protea-green: #228B22;
+  --sunset-orange: #FF4500;
+  --highveld-sky-blue: #87CEEB;
+  --veld-beige: #F5F5DC;
+  --karoo-dusk: #36454F;
+  --ember: #FF7518;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
+  /* Joune Brand Colors */
+  --color-primary-50: #FFF8DC;
+  --color-primary-100: #F5F5DC;
+  --color-primary-200: #D2691E;
+  --color-primary-300: #228B22;
+  --color-primary-400: #FF4500;
+  --color-primary-500: #87CEEB;
+  --color-primary-600: #36454F;
+  --color-primary-700: #FF7518;
+  --color-primary-800: #2F4F4F;
+  --color-primary-900: #1C1C1C;
+  
+  /* Joune Semantic Colors */
+  --color-ochre: var(--warm-ochre);
+  --color-protea: var(--deep-protea-green);
+  --color-sunset: var(--sunset-orange);
+  --color-sky: var(--highveld-sky-blue);
+  --color-beige: var(--veld-beige);
+  --color-dusk: var(--karoo-dusk);
+  --color-ember: var(--ember);
+  
+  /* Enhanced Shadows with South African warmth */
+  --shadow-soft: 0 2px 15px -3px rgba(210, 105, 30, 0.07), 0 10px 20px -2px rgba(210, 105, 30, 0.04);
+  --shadow-medium: 0 4px 25px -5px rgba(210, 105, 30, 0.1), 0 10px 10px -5px rgba(210, 105, 30, 0.04);
+  --shadow-large: 0 10px 50px -12px rgba(210, 105, 30, 0.25);
+  --shadow-ember: 0 0 20px rgba(255, 117, 24, 0.3);
+  
+  /* Container Widths */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1536px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: var(--karoo-dusk);
+    --foreground: var(--veld-beige);
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Veld pattern utility */
+.bg-veld-pattern {
+  background-image: 
+    linear-gradient(rgba(210, 105, 30, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(210, 105, 30, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Campfire glow effect */
+.campfire-glow {
+  box-shadow: var(--shadow-ember);
+  animation: ember-pulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes ember-pulse {
+  from { box-shadow: 0 0 20px rgba(255, 117, 24, 0.3); }
+  to { box-shadow: 0 0 30px rgba(255, 117, 24, 0.5); }
+}
+
+/* Custom utilities */
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Focus styles with South African flair */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2;
+}
+
+/* Horizon fade transition */
+.horizon-fade {
+  background: linear-gradient(
+    to bottom,
+    var(--highveld-sky-blue) 0%,
+    var(--sunset-orange) 50%,
+    var(--warm-ochre) 100%
+  );
+}
+
+/* 3D card styles */
+.card-3d {
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.card-flip {
+  transform: rotateY(180deg);
+}
+
+/* Protea bloom animation */
+.protea-bloom {
+  animation: bloom 0.6s ease-out;
+}
+
+@keyframes bloom {
+  0% { transform: scale(0.8) rotate(-5deg); opacity: 0.8; }
+  50% { transform: scale(1.1) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
